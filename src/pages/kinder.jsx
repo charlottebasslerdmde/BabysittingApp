@@ -1,0 +1,233 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Page, Navbar, NavTitle, NavRight, Link, List, ListItem, 
+  Block, Button, Sheet, PageContent, Fab, Icon, SwipeoutActions, 
+  SwipeoutButton, ListInput, Toolbar, f7 
+} from 'framework7-react';
+
+const KinderPage = () => {
+  // State für die Liste der Kinder
+  const [kinder, setKinder] = useState([]);
+  
+  // State für das "Kind hinzufügen" Sheet
+  const [sheetOpened, setSheetOpened] = useState(false);
+  const [newKindName, setNewKindName] = useState('');
+  
+  // Referenz für den File-Input (Kamera/Galerie)
+  const fileInputRef = useRef(null);
+  const [tempPhoto, setTempPhoto] = useState(null);
+
+  // Initiales Laden aus dem LocalStorage (Offline-First Ansatz)
+  useEffect(() => {
+    const storedKinder = localStorage.getItem('sitterSafe_kinder');
+    if (storedKinder) {
+      try {
+        setKinder(JSON.parse(storedKinder));
+      } catch (e) {
+        console.error("Fehler beim Laden der Daten", e);
+      }
+    }
+  }, []);
+
+  // Speichern bei Änderungen (Reaktivität)
+  useEffect(() => {
+    localStorage.setItem('sitterSafe_kinder', JSON.stringify(kinder));
+  }, [kinder]);
+
+  const openAddSheet = () => {
+    setNewKindName('');
+    setTempPhoto(null);
+    setSheetOpened(true);
+  };
+
+  // Hilfsfunktion: Foto einlesen (Base64 für LocalStorage)
+  const handlePhotoUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTempPhoto(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addKind = () => {
+    if (!newKindName.trim()) {
+      f7.toast.show({ text: 'Bitte einen Namen eingeben', position: 'center', closeTimeout: 2000 });
+      return;
+    }
+
+    // ERFÜLLUNG SPEZIFIKATION 2.A: Logische Clusterung der Daten
+    const newKind = {
+      id: Date.now().toString(),
+      basis: {
+        name: newKindName.trim(),
+        rufname: '',
+        geburtsdatum: '', // Input type date
+        foto: tempPhoto || '', // Base64 String
+      },
+      sicherheit: {
+        notfallKontakte: '',
+        allergien: '', // Textarea
+        medikamente: [],
+        hausarzt: '',
+        krankenkasse: ''
+      },
+      routine: {
+        essensplan: '',
+        schlafenszeitRitual: '',
+        hygiene: ''
+      },
+      regeln: {
+        medienzeit: '',
+        suessigkeiten: '',
+        tabuZonen: ''
+      },
+      psychologie: {
+        aengste: '',
+        beruhigungsStrategie: '',
+        belohnungssystem: ''
+      },
+      logs: [] // Für 2.B: Live-Aktivitäts-Tracker
+    };
+
+    setKinder([...kinder, newKind]);
+    setSheetOpened(false);
+    f7.toast.show({ text: 'Kind erfolgreich angelegt', icon: '<i class="f7-icons">checkmark_alt</i>', closeTimeout: 2000 });
+    // Nach dem Erstellen zur Detail-Seite navigieren, um Infos zu bearbeiten
+    f7.router.navigate(`/kind/${newKind.id}/`);
+  };
+
+  const deleteKind = (id) => {
+    f7.dialog.confirm('Möchtest du dieses Profil wirklich löschen?', 'SitterSafe', () => {
+      const updatedKinder = kinder.filter(k => k.id !== id);
+      setKinder(updatedKinder);
+    });
+  };
+
+  // Hilfsfunktion für Avatar-Anzeige (Foto oder Initialen)
+  const renderAvatar = (kind) => {
+    if (kind.basis.foto) {
+      return <img src={kind.basis.foto} style={{width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover'}} alt="Avatar" />;
+    }
+    return (
+      <div style={{
+        width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#00e1ff', 
+        color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+      }}>
+        {kind.basis.name.charAt(0).toUpperCase()}
+      </div>
+    );
+  };
+
+  return (
+    <Page name="kinder">
+      {/* Navbar gemäß iOS Design Guidelines */}
+      <Navbar title="Meine Schützlinge">
+        <NavRight>
+          <Link iconF7="plus" onClick={openAddSheet} />
+        </NavRight>
+      </Navbar>
+
+      {/* Leerer Zustand (Empty State) */}
+      {kinder.length === 0 && (
+        <Block className="text-align-center" style={{marginTop: '30vh', opacity: 0.6}}>
+          <Icon f7="person_3_fill" size="64px" color="gray"></Icon>
+          <p>Noch keine Kinder angelegt.</p>
+          <Button fill round small onClick={openAddSheet} style={{maxWidth: '200px', margin: '0 auto'}}>
+            Erstes Profil erstellen
+          </Button>
+        </Block>
+      )}
+
+      {/* Liste der Kinder mit Swipe-to-Delete */}
+      <List mediaList dividersIos outlineIos insetMd>
+        {kinder.map((kind) => (
+          <ListItem
+            key={kind.id}
+            link={`/kind/${kind.id}/`} // Routing zur Detailseite (muss in routes.js definiert sein)
+            title={kind.basis.name}
+            subtitle={kind.basis.rufname ? `"${kind.basis.rufname}"` : 'Kein Spitzname'}
+            text={`Status: ${kind.sicherheit.allergien ? '⚠️ Allergien vermerkt' : '✅ Alles ok'}`}
+            swipeout
+          >
+            <div slot="media">
+              {renderAvatar(kind)}
+            </div>
+            <SwipeoutActions right>
+              <SwipeoutButton color="red" onClick={() => deleteKind(kind.id)}>
+                Löschen
+              </SwipeoutButton>
+            </SwipeoutActions>
+          </ListItem>
+        ))}
+      </List>
+
+      {/* Floating Action Button (FAB) für schnelle Erfassung */}
+      <Fab position="right-bottom" slot="fixed" color="blue" onClick={openAddSheet}>
+        <Icon ios="f7:plus" md="material:add" />
+      </Fab>
+
+      {/* Sheet Modal für neues Kind (Atomic Creation) */}
+      <Sheet
+        opened={sheetOpened}
+        onSheetClosed={() => setSheetOpened(false)}
+        style={{height: 'auto', borderTopLeftRadius: '16px', borderTopRightRadius: '16px'}}
+        swipeToClose
+        backdrop
+      >
+        <div className="sheet-modal-inner">
+          <Block>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+              <h3 style={{margin: 0}}>Neues Profil</h3>
+              <Link onClick={() => setSheetOpened(false)}>Abbrechen</Link>
+            </div>
+            
+            <div style={{textAlign: 'center', marginBottom: '20px'}}>
+               {/* Versteckter File Input + Custom Button */}
+               <input 
+                  type="file" 
+                  accept="image/*" 
+                  capture="user" // Zwingt Mobile Devices zur Kamera-Option (Spezifikation 2.D)
+                  ref={fileInputRef} 
+                  style={{display: 'none'}} 
+                  onChange={handlePhotoUpload}
+               />
+               <div onClick={() => fileInputRef.current.click()} style={{cursor: 'pointer'}}>
+                 {tempPhoto ? (
+                   <img src={tempPhoto} style={{width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #00e1ff'}} />
+                 ) : (
+                   <div style={{width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#f0f0f0', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                     <Icon f7="camera_fill" color="gray" size="32px" />
+                   </div>
+                 )}
+                 <div style={{fontSize: '12px', color: '#007aff', marginTop: '4px'}}>Foto hinzufügen</div>
+               </div>
+            </div>
+
+            <List noHairlinesMd>
+              <ListInput
+                label="Vorname *"
+                type="text"
+                placeholder="Wie heißt das Kind?"
+                value={newKindName}
+                onInput={(e) => setNewKindName(e.target.value)}
+                clearButton
+                outline
+                floatingLabel
+              />
+            </List>
+            
+            <Button fill large onClick={addKind} style={{marginTop: '20px', borderRadius: '12px'}}>
+              Profil erstellen
+            </Button>
+            <div style={{height: '20px'}}></div>
+          </Block>
+        </div>
+      </Sheet>
+    </Page>
+  );
+};
+
+export default KinderPage;

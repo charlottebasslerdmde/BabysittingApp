@@ -1,0 +1,18 @@
+{
+  "cwd": "/Users/d0304104/Library/CloudStorage/OneDrive-dmdrogerie/Studium - Master/Mobile Business Apps/BabysittingApp",
+  "type": [
+    "pwa"
+  ],
+  "name": "Babysitter",
+  "framework": "react",
+  "template": "tabs",
+  "bundler": "vite",
+  "cssPreProcessor": false,
+  "theming": {
+    "customColor": true,
+    "color": "#00e1ff",
+    "darkMode": false,
+    "iconFonts": true
+  },
+  "customBuild": false
+}

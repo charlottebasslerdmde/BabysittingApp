@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NannyNote</string>
+    <string name="title_activity_main">NannyNote</string>
+    <string name="package_name">de.dhbw.nannynote</string>
+    <string name="custom_url_scheme">de.dhbw.nannynote</string>
+</resources>
