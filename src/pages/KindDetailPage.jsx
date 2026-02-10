@@ -27,11 +27,9 @@ const KindDetailPage = ({ f7route }) => {
           title: "Authentifizierung",
           subtitle: "Bitte bestätigen",
           description: "Lege deinen Finger auf den Sensor"
-        }).then(() => true).
-        catch(() => false);
+        });
 
-
-        if (result.success) {
+        if (result) {
           setActiveTab(newTab);
           f7.toast.show({ text: 'Zugriff gewährt', icon: '<i class="f7-icons">lock_open</i>', closeTimeout: 1500 });
         }
@@ -131,6 +129,22 @@ const KindDetailPage = ({ f7route }) => {
         [cluster]: { ...updatedKind[cluster], [field]: [...currentList, newMed] }
       };
     } else {
+      // Validierung für Geburtsdatum
+      if (field === 'geburtsdatum' && value) {
+        const selectedDate = new Date(value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (selectedDate > today) {
+          f7.toast.show({ 
+            text: 'Geburtsdatum darf nicht in der Zukunft liegen', 
+            position: 'center', 
+            closeTimeout: 2000 
+          });
+          return;
+        }
+      }
+      
       updatedKind = { 
         ...updatedKind, 
         [cluster]: { ...updatedKind[cluster], [field]: value }
@@ -172,7 +186,7 @@ const KindDetailPage = ({ f7route }) => {
       const base64Image = event.target.result;
       const updatedKind = {
         ...kind,
-        basis: { ...kind.basis, profilFoto: base64Image }
+        basis: { ...kind.basis, foto: base64Image }
       };
       persistChanges(updatedKind);
       f7.toast.show({ 
@@ -192,7 +206,7 @@ const KindDetailPage = ({ f7route }) => {
       () => {
         const updatedKind = {
           ...kind,
-          basis: { ...kind.basis, profilFoto: null }
+          basis: { ...kind.basis, foto: null }
         };
         persistChanges(updatedKind);
         f7.toast.show({ text: 'Foto entfernt', closeTimeout: 1500 });
@@ -203,6 +217,37 @@ const KindDetailPage = ({ f7route }) => {
   if (!kind) return <Page><Navbar title="Laden..." /></Page>;
 
   // --- 4. RENDER HELPER ---
+  const calculateAge = (birthdate) => {
+    if (!birthdate) return null;
+    
+    const birth = new Date(birthdate);
+    const today = new Date();
+    
+    let years = today.getFullYear() - birth.getFullYear();
+    let months = today.getMonth() - birth.getMonth();
+    
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    
+    if (today.getDate() < birth.getDate()) {
+      months--;
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+    }
+    
+    if (years === 0) {
+      return `${months} ${months === 1 ? 'Monat' : 'Monate'}`;
+    } else if (months === 0) {
+      return `${years} ${years === 1 ? 'Jahr' : 'Jahre'}`;
+    } else {
+      return `${years} ${years === 1 ? 'Jahr' : 'Jahre'}, ${months} ${months === 1 ? 'Monat' : 'Monate'}`;
+    }
+  };
+
   const RenderItem = ({ cluster, field, label, type = 'text', placeholder = 'Nicht angegeben' }) => {
     const val = kind[cluster]?.[field];
     return (
@@ -246,18 +291,50 @@ const KindDetailPage = ({ f7route }) => {
   // --- 5. HAUPT RENDER ---
   return (
     <Page name="kind-detail">
-      <Navbar title={kind.basis.name} backLink="Zurück">
+      <Navbar backLink="Zurück" backLinkShowText={false}>
+        <div slot="title" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+          <Icon f7="person_crop_circle_fill" size="24px" color="#667eea" />
+          <span style={{fontSize: '18px', fontWeight: '600'}}>{kind.basis.name}</span>
+        </div>
         <Subnavbar>
-          <Segmented raised>
-            <Button tabLinkActive={activeTab === 'basis'} onClick={() => handleTabChange('basis')}>Basis</Button>
-            <Button tabLinkActive={activeTab === 'sicherheit'} onClick={() => handleTabChange('sicherheit')}>
-               <Icon f7="lock_fill" size="14px" style={{marginRight:'4px'}}/> Sicherheit
+          <Segmented raised style={{fontSize: '13px'}}>
+            <Button 
+              tabLinkActive={activeTab === 'basis'} 
+              onClick={() => handleTabChange('basis')}
+              style={{minWidth: '60px', padding: '0 8px'}}
+            >
+              <Icon f7="person_fill" size="16px" style={{marginBottom: '2px'}} /><br/>
+              <span style={{fontSize: '11px'}}>Basis</span>
             </Button>
-            <Button tabLinkActive={activeTab === 'routine'} onClick={() => handleTabChange('routine')}>Routine</Button>
-            <Button tabLinkActive={activeTab === 'regeln'} onClick={() => handleTabChange('regeln')}>Regeln</Button>
+            <Button 
+              tabLinkActive={activeTab === 'sicherheit'} 
+              onClick={() => handleTabChange('sicherheit')}
+              style={{minWidth: '60px', padding: '0 8px'}}
+            >
+              <Icon f7="lock_fill" size="16px" style={{marginBottom: '2px'}} /><br/>
+              <span style={{fontSize: '11px'}}>Medizin</span>
+            </Button>
+            <Button 
+              tabLinkActive={activeTab === 'routine'} 
+              onClick={() => handleTabChange('routine')}
+              style={{minWidth: '60px', padding: '0 8px'}}
+            >
+              <Icon f7="clock_fill" size="16px" style={{marginBottom: '2px'}} /><br/>
+              <span style={{fontSize: '11px'}}>Routine</span>
+            </Button>
+            <Button 
+              tabLinkActive={activeTab === 'regeln'} 
+              onClick={() => handleTabChange('regeln')}
+              style={{minWidth: '60px', padding: '0 8px'}}
+            >
+              <Icon f7="list_bullet" size="16px" style={{marginBottom: '2px'}} /><br/>
+              <span style={{fontSize: '11px'}}>Regeln</span>
+            </Button>
           </Segmented>
         </Subnavbar>
       </Navbar>
+
+      <div style={{height: '10px'}} />
 
       {activeTab === 'basis' && (
         <>
@@ -276,14 +353,14 @@ const KindDetailPage = ({ f7route }) => {
                 overflow: 'hidden',
                 border: '4px solid white',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                background: kind.basis?.profilFoto ? 'transparent' : '#f0f0f0',
+                background: kind.basis?.foto ? 'transparent' : '#f0f0f0',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                {kind.basis?.profilFoto ? (
+                {kind.basis?.foto ? (
                   <img 
-                    src={kind.basis.profilFoto} 
+                    src={kind.basis.foto} 
                     alt="Profilfoto" 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
@@ -308,9 +385,9 @@ const KindDetailPage = ({ f7route }) => {
                   style={{ borderRadius: '20px', background: 'white', color: '#667eea' }}
                 >
                   <Icon f7="camera_fill" size="16px" style={{ marginRight: '4px' }} />
-                  {kind.basis?.profilFoto ? 'Ändern' : 'Foto hinzufügen'}
+                  {kind.basis?.foto ? 'Ändern' : 'Foto hinzufügen'}
                 </Button>
-                {kind.basis?.profilFoto && (
+                {kind.basis?.foto && (
                   <Button 
                     fill 
                     small 
@@ -328,6 +405,12 @@ const KindDetailPage = ({ f7route }) => {
             <RenderItem cluster="basis" field="name" label="Vollständiger Name" />
             <RenderItem cluster="basis" field="rufname" label="Rufname / Spitzname" />
             <RenderItem cluster="basis" field="geburtsdatum" label="Geburtsdatum" type="date" />
+            <ListItem 
+              title="Aktuelles Alter" 
+              after={calculateAge(kind.basis?.geburtsdatum) || 'Geburtsdatum erforderlich'}
+            >
+              <Icon slot="media" f7="calendar" size="16px" color="#667eea" />
+            </ListItem>
           </List>
         </>
       )}
@@ -373,52 +456,80 @@ const KindDetailPage = ({ f7route }) => {
       <Sheet 
         opened={editSheet.opened} 
         onSheetClosed={() => setEditSheet({...editSheet, opened: false})}
-        style={{height: 'auto', borderTopLeftRadius: '16px', borderTopRightRadius: '16px'}}
+        style={{height: '70%', borderTopLeftRadius: '16px', borderTopRightRadius: '16px'}}
         swipeToClose
         backdrop
       >
-        <div className="sheet-modal-inner">
-          <Toolbar top>
-            <div className="left" style={{paddingLeft: '16px', fontWeight: 'bold'}}>{editSheet.label}</div>
-            <div className="right">
-              <Link onClick={() => setEditSheet({...editSheet, opened: false})}>Abbrechen</Link>
-            </div>
-          </Toolbar>
-          <Block style={{padding: '40px 16px 20px'}}>
-            {editSheet.type === 'medication' ? (
-              <List noHairlinesMd>
+        <Toolbar top>
+          <div className="left" style={{paddingLeft: '16px', fontWeight: 'bold'}}>{editSheet.label}</div>
+          <div className="right">
+            <Link onClick={() => setEditSheet({...editSheet, opened: false})}>Abbrechen</Link>
+          </div>
+        </Toolbar>
+        <div style={{
+          height: 'calc(100% - 44px)',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch'
+        }}>
+          <Block style={{padding: '24px 16px 60px'}}>
+            <List noHairlinesMd>
+              {editSheet.type === 'medication' ? (
+                <>
+                  <ListInput
+                    label="Name" type="text" placeholder="z.B. Hustensaft"
+                    value={editSheet.medFormData.name}
+                    onInput={(e) => setEditSheet({...editSheet, medFormData: {...editSheet.medFormData, name: e.target.value}})}
+                    outline floatingLabel clearButton
+                    style={{
+                      '--f7-input-height': '44px',
+                      '--f7-input-padding-vertical': '8px'
+                    }}
+                  />
+                  <ListInput
+                    label="Dosis" type="text" placeholder="z.B. 5ml"
+                    value={editSheet.medFormData.dosis}
+                    onInput={(e) => setEditSheet({...editSheet, medFormData: {...editSheet.medFormData, dosis: e.target.value}})}
+                    outline floatingLabel clearButton
+                    style={{
+                      '--f7-input-height': '44px',
+                      '--f7-input-padding-vertical': '8px'
+                    }}
+                  />
+                  <ListInput
+                    label="Info" type="textarea" placeholder="Anwendung..."
+                    value={editSheet.medFormData.info}
+                    onInput={(e) => setEditSheet({...editSheet, medFormData: {...editSheet.medFormData, info: e.target.value}})}
+                    outline floatingLabel resizable
+                  />
+                </>
+              ) : (
                 <ListInput
-                  label="Name" type="text" placeholder="z.B. Hustensaft"
-                  value={editSheet.medFormData.name}
-                  onInput={(e) => setEditSheet({...editSheet, medFormData: {...editSheet.medFormData, name: e.target.value}})}
-                  outline floatingLabel clearButton
+                  label={editSheet.label}
+                  type={editSheet.type}
+                  value={editSheet.value}
+                  placeholder="Eingabe..."
+                  clearButton
+                  onInput={(e) => setEditSheet({...editSheet, value: e.target.value})}
+                  resizable={editSheet.type === 'textarea'}
+                  outline
+                  floatingLabel
+                  style={{
+                    '--f7-input-height': '44px',
+                    '--f7-input-padding-vertical': '8px',
+                    '--f7-list-item-min-height': '44px'
+                  }}
+                  inputStyle={{
+                    margin: 0,
+                    padding: '10px 12px',
+                    height: editSheet.type === 'date' ? '44px' : 'auto',
+                    lineHeight: '1.4',
+                    verticalAlign: 'middle',
+                    boxSizing: 'border-box'
+                  }}
                 />
-                <ListInput
-                  label="Dosis" type="text" placeholder="z.B. 5ml"
-                  value={editSheet.medFormData.dosis}
-                  onInput={(e) => setEditSheet({...editSheet, medFormData: {...editSheet.medFormData, dosis: e.target.value}})}
-                  outline floatingLabel clearButton
-                />
-                <ListInput
-                  label="Info" type="textarea" placeholder="Anwendung..."
-                  value={editSheet.medFormData.info}
-                  onInput={(e) => setEditSheet({...editSheet, medFormData: {...editSheet.medFormData, info: e.target.value}})}
-                  outline floatingLabel resizable
-                />
-              </List>
-            ) : (
-              <Input
-                type={editSheet.type}
-                value={editSheet.value}
-                placeholder={`Eingabe...`}
-                clearButton
-                onInput={(e) => setEditSheet({...editSheet, value: e.target.value})}
-                resizable={editSheet.type === 'textarea'}
-                autofocus
-                style={{marginBottom: '24px'}}
-              />
-            )}
-            <Button fill large onClick={saveField} style={{marginTop: '16px', marginBottom: '30px', borderRadius: '12px'}}>Speichern</Button>
+              )}
+            </List>
+            <Button fill large onClick={saveField} style={{marginTop: '24px', marginBottom: '20px', borderRadius: '12px'}}>Speichern</Button>
           </Block>
         </div>
       </Sheet>

@@ -28,8 +28,11 @@ import {
   SwipeoutButton,
   f7 
 } from 'framework7-react';
+import { useTranslation } from '../js/i18n';
 
 const HomePage = () => {
+  // i18n Hook
+  const { t } = useTranslation();
   // --- STATE DEFINITIONEN ---
   
   // 1. Tracker & Protokoll
@@ -70,6 +73,10 @@ const HomePage = () => {
 
   // 5. Undo-Funktion
   const [lastDeleted, setLastDeleted] = useState(null);
+  
+  // 6. PWA Install Prompt
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
 
   // --- EFFEKTE (Laden beim Start) ---
 
@@ -83,7 +90,67 @@ const HomePage = () => {
 
     // C) Kinder laden (Supabase + LocalStorage)
     loadKinderData();
+
+    // D) EventLog laden (Persistierung)
+    const savedEventLog = localStorage.getItem('sitterSafe_eventLog');
+    if (savedEventLog) {
+      try {
+        setEventLog(JSON.parse(savedEventLog));
+      } catch (e) {
+        console.error("Fehler beim Laden des EventLogs", e);
+      }
+    }
+
+    // E) ShiftData laden (aktuelle Schicht)
+    const savedShiftData = localStorage.getItem('sitterSafe_shiftData');
+    if (savedShiftData) {
+      try {
+        setShiftData(JSON.parse(savedShiftData));
+      } catch (e) {
+        console.error("Fehler beim Laden der ShiftData", e);
+      }
+    }
+    
+    // D) PWA Install Prompt registrieren
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      
+      // Zeige Banner nur, wenn nicht bereits installiert und nicht dismissed
+      const dismissed = localStorage.getItem('sitterSafe_installDismissed');
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      
+      if (!dismissed && !isStandalone) {
+        setShowInstallBanner(true);
+      }
+    };
+    
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    // Check if already in standalone mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (!isStandalone) {
+      const dismissed = localStorage.getItem('sitterSafe_installDismissed');
+      if (!dismissed) {
+        // Zeige Banner nach 2 Sekunden
+        setTimeout(() => setShowInstallBanner(true), 2000);
+      }
+    }
+    
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
+
+  // EventLog in LocalStorage speichern (Persistierung)
+  useEffect(() => {
+    localStorage.setItem('sitterSafe_eventLog', JSON.stringify(eventLog));
+  }, [eventLog]);
+
+  // ShiftData in LocalStorage speichern (aktuelle Schicht)
+  useEffect(() => {
+    localStorage.setItem('sitterSafe_shiftData', JSON.stringify(shiftData));
+  }, [shiftData]);
 
   // --- HILFSFUNKTIONEN ---
 
@@ -265,6 +332,59 @@ const HomePage = () => {
     }
   };
 
+  // PWA Install Handler
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) {
+      // iOS Anleitung zeigen
+      if (/(iPhone|iPad|iPod)/.test(navigator.userAgent)) {
+        f7.dialog.alert(
+          `<div style="text-align: center; padding: 20px;">
+            <div style="font-size: 48px; margin-bottom: 15px;">📱</div>
+            <p><b>SitterSafe zum Home-Screen hinzufügen:</b></p>
+            <ol style="text-align: left; margin: 15px 0; line-height: 1.8;">
+              <li>Tippe auf das <b>Teilen-Symbol</b> <span style="font-size: 20px;">⎋</span> unten</li>
+              <li>Scrolle und wähle <b>"Zum Home-Bildschirm"</b></li>
+              <li>Tippe auf <b>"Hinzufügen"</b></li>
+            </ol>
+            <p>Danach kannst du SitterSafe wie eine normale App öffnen! 🎉</p>
+          </div>`,
+          'Installation'
+        );
+      } else {
+        f7.toast.show({ 
+          text: 'Installation aktuell nicht verfügbar', 
+          closeTimeout: 2000 
+        });
+      }
+      return;
+    }
+    
+    // Show install prompt
+    deferredPrompt.prompt();
+    
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      f7.toast.show({ 
+        text: '🎉 Installation gestartet!', 
+        closeTimeout: 2000,
+        cssClass: 'toast-success'
+      });
+    }
+    
+    setDeferredPrompt(null);
+    setShowInstallBanner(false);
+  };
+
+  const dismissInstallBanner = () => {
+    setShowInstallBanner(false);
+    localStorage.setItem('sitterSafe_installDismissed', 'true');
+    f7.toast.show({ 
+      text: 'Du kannst die App jederzeit über die Browser-Einstellungen installieren', 
+      closeTimeout: 3000 
+    });
+  };
+
   // Helper für Avatar (Foto oder Buchstaben)
   const renderAvatar = (kind) => {
     if (kind.basis.foto) {
@@ -284,7 +404,7 @@ const HomePage = () => {
 
   return (
     <Page name="home">
-      <Navbar large sliding={false}>
+      <Navbar large>
         <NavLeft>
           <Link iconIos="f7:gear_alt_fill" iconMd="material:settings" href="/settings/" />
         </NavLeft>
@@ -292,17 +412,67 @@ const HomePage = () => {
         <NavRight>
           <Link iconIos="f7:exclamationmark_shield_fill" iconMd="material:security" iconColor="red" onClick={() => setSheetOpened(true)} />
         </NavRight>
-        <Toolbar tabbar position="bottom">
-          <Link tabLink="#tab-tracker" tabLinkActive text="Tracker" iconIos="f7:clock_fill" iconMd="material:schedule" />
-          <Link tabLink="#tab-kinder" text="Profile" iconIos="f7:person_2_fill" iconMd="material:people" />
-          <Link tabLink="#tab-fotos" text="Moment" iconIos="f7:camera_fill" iconMd="material:camera_alt" />
-        </Toolbar>
       </Navbar>
+
+      <Toolbar tabbar labels bottom>
+        <Link tabLink="#tab-tracker" tabLinkActive iconIos="f7:clock_fill" iconMd="material:schedule" text="Tracker" />
+        <Link tabLink="#tab-kinder" iconIos="f7:person_2_fill" iconMd="material:people" text="Kinder" />
+        <Link tabLink="#tab-fotos" iconIos="f7:camera_fill" iconMd="material:camera_alt" text="Fotos" />
+      </Toolbar>
 
       <Tabs>
         
         {/* TAB 1: TRACKER */}
         <Tab id="tab-tracker" className="page-content" tabActive>
+          
+          {/* PWA Install Banner */}
+          {showInstallBanner && (
+            <Card style={{
+              margin: '16px',
+              background: 'linear-gradient(135deg, #00e1ff 0%, #007aff 100%)',
+              color: 'white',
+              border: 'none'
+            }}>
+              <CardContent>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ fontSize: '40px' }}>📱</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '4px' }}>
+                      App installieren
+                    </div>
+                    <div style={{ fontSize: '13px', opacity: 0.95 }}>
+                      Zum Home-Screen hinzufügen für schnelleren Zugriff
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                    <Button 
+                      small 
+                      fill
+                      style={{ 
+                        background: 'white', 
+                        color: '#007aff',
+                        fontWeight: 'bold'
+                      }}
+                      onClick={handleInstallClick}
+                    >
+                      Installieren
+                    </Button>
+                    <Button 
+                      small
+                      onClick={dismissInstallBanner}
+                      style={{ 
+                        background: 'rgba(255,255,255,0.2)',
+                        color: 'white'
+                      }}
+                    >
+                      Später
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           {showFact && (
             <Card outline className="no-shadow">
               <CardHeader>

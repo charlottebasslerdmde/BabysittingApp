@@ -45,6 +45,10 @@ var routes = [
     component: CatalogPage,
   },
   {
+    path: '/settings/',
+    component: SettingsPage,
+  },
+  {
     path: '/dynamic-route/blog/:blogId/post/:postId/',
     component: DynamicRoutePage,
   },

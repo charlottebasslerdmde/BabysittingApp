@@ -1,3 +1,13 @@
+// ⚠️ VERALTET: Diese Datei wird nicht mehr verwendet!
+// Die Kinder-Detailseite wurde durch KindDetailPage.jsx ersetzt.
+// Diese Datei kann gelöscht werden, bleibt aber vorerst als Referenz erhalten.
+//
+// Unterschiede zur neuen KindDetailPage.jsx:
+// - Diese Datei verwendet eine flache Datenstruktur (childData.name)
+// - KindDetailPage.jsx verwendet eine hierarchische Struktur (kind.basis.name)
+// - Diese Datei speichert in localStorage.getItem('kinder')
+// - KindDetailPage.jsx speichert in localStorage.getItem('sitterSafe_kinder')
+
 import React, { useState, useEffect } from 'react';
 import {
   Page,

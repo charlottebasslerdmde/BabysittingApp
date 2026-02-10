@@ -1,5 +1,6 @@
 
 import { createStore } from 'framework7/lite';
+import { getLanguage } from './i18n';
 
 const store = createStore({
   state: {
@@ -19,17 +20,24 @@ const store = createStore({
         title: 'Apple iPhone X',
         description: 'Expedita sequi perferendis quod illum pariatur aliquam, alias laboriosam! Vero blanditiis placeat, mollitia necessitatibus reprehenderit. Labore dolores amet quos, accusamus earum asperiores officiis assumenda optio architecto quia neque, quae eum.'
       },
-    ]
+    ],
+    language: getLanguage() || 'de'
   },
   getters: {
     products({ state }) {
       return state.products;
+    },
+    language({ state }) {
+      return state.language;
     }
   },
   actions: {
     addProduct({ state }, product) {
       state.products = [...state.products, product];
     },
+    setLanguage({ state }, language) {
+      state.language = language;
+    }
   },
 })
 export default store;

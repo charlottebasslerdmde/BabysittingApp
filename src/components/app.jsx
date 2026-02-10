@@ -28,11 +28,46 @@ import {
 
 import routes from '../js/routes';
 import store from '../js/store';
+import { initI18n, t } from '../js/i18n';
 
 const MyApp = () => {
   // Login screen demo data
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  
+  // Offline-Status
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Offline/Online Event Listener
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      f7.toast.show({
+        text: t('toast_online'),
+        closeTimeout: 2000,
+        position: 'top',
+        cssClass: 'toast-online'
+      });
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+      f7.toast.show({
+        text: t('toast_offline'),
+        closeTimeout: 3000,
+        position: 'top',
+        cssClass: 'toast-offline'
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Framework7 Parameters
   const f7params = {
@@ -60,13 +95,40 @@ const MyApp = () => {
     });
   }
   f7ready(() => {
-
+    // Initialize i18n
+    initI18n();
 
     // Call F7 APIs here
   });
 
   return (
     <App { ...f7params }>
+      
+      {/* Offline-Indikator */}
+      {!isOnline && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          background: 'linear-gradient(135deg, #ff9500 0%, #ff6b00 100%)',
+          color: 'white',
+          padding: '8px 16px',
+          textAlign: 'center',
+          fontSize: '13px',
+          fontWeight: '600',
+          zIndex: 10000,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px'
+        }}>
+          <span style={{ fontSize: '16px' }}>📡</span>
+          <span>Offline - Daten werden lokal gespeichert</span>
+          <span style={{ fontSize: '16px' }}>💾</span>
+        </div>
+      )}
 
         {/* Left panel with cover effect*/}
         <Panel left cover dark>
@@ -96,7 +158,7 @@ const MyApp = () => {
           <Toolbar tabbar icons bottom>
             <ToolbarPane>
               <Link tabLink="#view-home" tabLinkActive iconIos="f7:house_fill" iconMd="material:home" text="Home" />
-              <Link tabLink="#view-catalog" iconIos="f7:square_list_fill" iconMd="material:view_list" text="Good to know" />
+              <Link tabLink="#view-catalog" iconIos="f7:square_list_fill" iconMd="material:view_list" text="Kids" />
               <Link tabLink="#view-settings" iconIos="f7:gear" iconMd="material:settings" text="Settings" />
             </ToolbarPane>
           </Toolbar>

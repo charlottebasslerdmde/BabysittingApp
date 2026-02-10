@@ -1,1 +1,4 @@
 /* Your app custom styles here */
+
+/* Import custom toast styles */
+@import './custom-toasts.css';

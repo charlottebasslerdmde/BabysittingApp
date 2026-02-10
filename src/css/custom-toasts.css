@@ -1,0 +1,35 @@
+/* Custom Toast Styles für Online/Offline */
+
+.toast-online {
+  background: linear-gradient(135deg, #34c759 0%, #30d158 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(52, 199, 89, 0.4) !important;
+}
+
+.toast-offline {
+  background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(255, 149, 0, 0.4) !important;
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #34c759 0%, #30d158 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+/* Offline-Indikator Animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.offline-indicator {
+  animation: pulse 2s ease-in-out infinite;
+}

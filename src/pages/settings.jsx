@@ -14,17 +14,20 @@ import {
   f7,
   Icon,
   Fab,
-  Sheet,
-  PageContent
+  Sheet
 } from 'framework7-react';
 import { supabase } from '../js/supabase';
+import { useTranslation } from '../js/i18n';
+import store from '../js/store';
 
 const SettingsPage = () => {
+  // i18n Hook für automatisches Re-Rendering bei Sprachwechsel
+  const { t: translate } = useTranslation();
+  
   // --- STATE ---
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [language, setLanguage] = useState('de');
   const [notifications, setNotifications] = useState(true);
   const [biometricRequired, setBiometricRequired] = useState(true);
   const [autoBackup, setAutoBackup] = useState(false);
@@ -36,7 +39,6 @@ const SettingsPage = () => {
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [lastBackupDate, setLastBackupDate] = useState('Nie');
   const [tutorialOpened, setTutorialOpened] = useState(false);
-  const [aboutOpened, setAboutOpened] = useState(false);
   const [helpOpened, setHelpOpened] = useState(false);
   const [profileImage, setProfileImage] = useState('');
   
@@ -69,51 +71,47 @@ const SettingsPage = () => {
     const storedSound = localStorage.getItem('sitterSafe_sound');
     if (storedSound) setSoundEnabled(JSON.parse(storedSound));
 
-    // 4. Sprache
-    const storedLang = localStorage.getItem('sitterSafe_language');
-    if (storedLang) setLanguage(storedLang);
-
-    // 5. Biometrie Pflicht
+    // 4. Biometrie Pflicht
     const storedBio = localStorage.getItem('sitterSafe_bio_active');
     if (storedBio) setBiometricRequired(JSON.parse(storedBio));
 
-    // 6. Auto-Backup
+    // 5. Auto-Backup
     const storedBackup = localStorage.getItem('sitterSafe_autoBackup');
     if (storedBackup) setAutoBackup(JSON.parse(storedBackup));
 
-    // 7. Erinnerungsintervall
+    // 6. Erinnerungsintervall
     const storedReminder = localStorage.getItem('sitterSafe_reminderInterval');
     if (storedReminder) setReminderInterval(storedReminder);
 
-    // 8. Benutzername
+    // 7. Benutzername
     const storedName = localStorage.getItem('sitterSafe_userName');
     if (storedName) setUserName(storedName);
 
-    // 9. Theme-Farbe
+    // 8. Theme-Farbe
     const storedTheme = localStorage.getItem('sitterSafe_themeColor');
     if (storedTheme) setThemeColor(storedTheme);
 
-    // 10. Standard-Kind
+    // 9. Standard-Kind
     const storedDefaultKind = localStorage.getItem('sitterSafe_defaultKind');
     if (storedDefaultKind) setDefaultKind(storedDefaultKind);
 
-    // 11. Auto-Löschung
+    // 10. Auto-Löschung
     const storedDeleteDays = localStorage.getItem('sitterSafe_autoDeleteDays');
     if (storedDeleteDays) setAutoDeleteDays(storedDeleteDays);
 
-    // 12. Notfall-Modus
+    // 11. Notfall-Modus
     const storedEmergency = localStorage.getItem('sitterSafe_emergencyMode');
     if (storedEmergency) setEmergencyMode(JSON.parse(storedEmergency));
 
-    // 13. Letztes Backup
+    // 12. Letztes Backup
     const storedBackupDate = localStorage.getItem('sitterSafe_lastBackup');
     if (storedBackupDate) setLastBackupDate(storedBackupDate);
 
-    // 14. Profilbild
+    // 13. Profilbild
     const storedImage = localStorage.getItem('sitterSafe_profileImage');
     if (storedImage) setProfileImage(storedImage);
 
-    // 15. Statistiken berechnen
+    // 14. Statistiken berechnen
     calculateStats();
   }, []);
 
@@ -161,16 +159,6 @@ const SettingsPage = () => {
     setHapticsEnabled(checked);
     localStorage.setItem('sitterSafe_haptics', JSON.stringify(checked));
     if (checked) f7.toast.show({text: 'Vibration an', closeTimeout: 1000, position: 'center'});
-  };
-
-  const changeLanguage = (e) => {
-    const val = e.target.value;
-    setLanguage(val);
-    localStorage.setItem('sitterSafe_language', val);
-    
-    // Kleines Feedback (Simuliert Sprachwechsel)
-    const msg = val === 'de' ? 'Sprache auf Deutsch gesetzt' : 'Language set to English';
-    f7.toast.show({text: msg, closeTimeout: 2000});
   };
 
   const toggleNotifications = (e) => {
@@ -359,7 +347,7 @@ const SettingsPage = () => {
       () => {
         // Nur temporäre Daten löschen, Einstellungen behalten
         const toKeep = ['sitterSafe_darkMode', 'sitterSafe_haptics', 'sitterSafe_sound', 
-                        'sitterSafe_language', 'sitterSafe_bio_active', 'sitterSafe_userName',
+                        'sitterSafe_bio_active', 'sitterSafe_userName',
                         'sitterSafe_kinder', 'sitterSafe_household', 'sitterSafe_themeColor',
                         'sitterSafe_defaultKind', 'sitterSafe_autoDeleteDays'];
         const backup = {};
@@ -502,11 +490,6 @@ const SettingsPage = () => {
   // NEU: Hilfe & FAQ anzeigen
   const showHelp = () => {
     setHelpOpened(true);
-  };
-
-  // NEU: Über SitterSafe
-  const showAbout = () => {
-    setAboutOpened(true);
   };
 
   // NEU: Feedback senden
@@ -719,7 +702,7 @@ const SettingsPage = () => {
 
   return (
     <Page name="settings" onPageBeforeOut={handlePageBeforeOut}>
-      <Navbar title="Einstellungen" backLink="Zurück" />
+      <Navbar title={translate('settings_title')} backLink={translate('back')} />
 
       {/* PROFIL CARD */}
       <Card style={{margin: '16px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white'}}>
@@ -820,19 +803,6 @@ const SettingsPage = () => {
       {/* 1. ALLGEMEIN */}
       <BlockTitle>Allgemein</BlockTitle>
       <List strong inset dividersIos>
-        <ListInput
-          label="Sprache"
-          type="select"
-          value={language}
-          onChange={changeLanguage}
-        >
-          <Icon slot="media" f7="globe" color="blue" />
-          <option value="de">🇩🇪 Deutsch</option>
-          <option value="en">🇬🇧 English</option>
-          <option value="fr">🇫🇷 Français</option>
-          <option value="es">🇪🇸 Español</option>
-        </ListInput>
-
         <ListItem title="Benachrichtigungen">
           <Icon slot="media" f7="bell_fill" color="red" />
           <Toggle slot="after" checked={notifications} onChange={toggleNotifications} />
@@ -1041,10 +1011,6 @@ const SettingsPage = () => {
           <Icon slot="media" f7="doc_text_fill" color="gray" />
         </ListItem>
 
-        <ListItem link="#" title="Über SitterSafe" onClick={showAbout}>
-          <Icon slot="media" f7="info_circle_fill" color="purple" />
-        </ListItem>
-
         <ListItem 
           link="#" 
           title="System-Informationen"
@@ -1054,7 +1020,7 @@ const SettingsPage = () => {
         </ListItem>
       </List>
 
-      <Block strong inset style={{textAlign: 'center', color: 'gray', marginTop: '30px', marginBottom: '60px'}}>
+      <Block strong inset style={{textAlign: 'center', color: 'gray', marginTop: '30px', marginBottom: '120px'}}>
         <div style={{fontSize: '14px', fontWeight: 'bold', marginBottom: '8px'}}>SitterSafe v1.2.0</div>
         <div style={{fontSize: '12px', opacity: 0.7}}>Build 2026.02.08</div>
         <div style={{fontSize: '12px', marginTop: '12px'}}>Made with ❤️ for safe babysitting</div>
@@ -1069,17 +1035,43 @@ const SettingsPage = () => {
       <Sheet
         opened={tutorialOpened}
         onSheetClosed={() => setTutorialOpened(false)}
-        style={{ height: 'auto', maxHeight: '90%' }}
+        closeByBackdropClick={true}
+        closeByOutsideClick={true}
+        style={{ 
+          height: '90vh', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          borderTopLeftRadius: '16px', 
+          borderTopRightRadius: '16px' 
+        }}
         swipeToClose
         backdrop
       >
-        <PageContent>
-          <Block style={{ marginTop: '10px' }}>
-            <div style={{ textAlign: 'right', marginBottom: '10px' }}>
-              <Button fill onClick={() => setTutorialOpened(false)}>Schließen</Button>
-            </div>
-            
-            <h2 style={{ marginTop: 0 }}>📚 SitterSafe Tutorial</h2>
+        {/* Fixierter Header */}
+        <div style={{ 
+          padding: '16px', 
+          borderBottom: '1px solid rgba(0,0,0,0.1)',
+          flexShrink: 0,
+          background: 'white',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>Tutorial</h3>
+            <Button fill onClick={() => setTutorialOpened(false)}>Schließen</Button>
+          </div>
+        </div>
+        
+        {/* Scrollbarer Content */}
+        <div style={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          padding: '16px', 
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch'
+        }}>
+          <h2 style={{ marginTop: 0 }}>📚 SitterSafe Tutorial</h2>
             
             <Card>
               <CardContent>
@@ -1122,25 +1114,50 @@ const SettingsPage = () => {
                 <p>Aktiviere den Notfall-Modus für größere Buttons und vereinfachte Navigation.</p>
               </CardContent>
             </Card>
-          </Block>
-        </PageContent>
+        </div>
       </Sheet>
 
       {/* HILFE SHEET */}
       <Sheet
         opened={helpOpened}
         onSheetClosed={() => setHelpOpened(false)}
-        style={{ height: 'auto', maxHeight: '90%' }}
+        closeByBackdropClick={true}
+        closeByOutsideClick={true}
+        style={{ 
+          height: '90vh', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          borderTopLeftRadius: '16px', 
+          borderTopRightRadius: '16px' 
+        }}
         swipeToClose
         backdrop
       >
-        <PageContent>
-          <Block style={{ marginTop: '10px' }}>
-            <div style={{ textAlign: 'right', marginBottom: '10px' }}>
-              <Button fill onClick={() => setHelpOpened(false)}>Schließen</Button>
-            </div>
-            
-            <h2 style={{ marginTop: 0 }}>❓ Häufig gestellte Fragen</h2>
+        {/* Fixierter Header */}
+        <div style={{ 
+          padding: '16px', 
+          borderBottom: '1px solid rgba(0,0,0,0.1)',
+          flexShrink: 0,
+          background: 'white',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>Hilfe & FAQ</h3>
+            <Button fill onClick={() => setHelpOpened(false)}>Schließen</Button>
+          </div>
+        </div>
+        
+        {/* Scrollbarer Content */}
+        <div style={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          padding: '16px', 
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch'
+        }}>
+          <h2 style={{ marginTop: 0 }}>❓ Häufig gestellte Fragen</h2>
             
             <Card>
               <CardContent>
@@ -1190,83 +1207,7 @@ const SettingsPage = () => {
                 <p>Nutze "Feedback senden" oder kontaktiere uns: support@sittersafe.app</p>
               </CardContent>
             </Card>
-          </Block>
-        </PageContent>
-      </Sheet>
-
-      {/* ÜBER SITTERSAFE SHEET */}
-      <Sheet
-        opened={aboutOpened}
-        onSheetClosed={() => setAboutOpened(false)}
-        style={{ height: 'auto', maxHeight: '90%' }}
-        swipeToClose
-        backdrop
-      >
-        <PageContent>
-          <Block style={{ marginTop: '10px' }}>
-            <div style={{ textAlign: 'right', marginBottom: '10px' }}>
-              <Button fill onClick={() => setAboutOpened(false)}>Schließen</Button>
-            </div>
-            
-            <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-              <div style={{ fontSize: '64px', marginBottom: '10px' }}>👶</div>
-              <h1 style={{ margin: '10px 0' }}>SitterSafe</h1>
-              <div style={{ color: '#666' }}>Version 1.2.0</div>
-              <div style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>Build 2026.02.08</div>
-            </div>
-
-            <Card>
-              <CardContent>
-                <h3>🎯 Unsere Mission</h3>
-                <p>SitterSafe macht Babysitting sicherer und einfacher. Wir helfen Babysittern dabei, den Überblick zu behalten und Eltern transparent zu informieren.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h3>✨ Features</h3>
-                <ul style={{ marginLeft: '20px', lineHeight: '1.8' }}>
-                  <li>Kinderprofile mit allen wichtigen Infos</li>
-                  <li>Ereignis-Protokollierung in Echtzeit</li>
-                  <li>Sichere Medikamentenverwaltung mit FaceID</li>
-                  <li>Cloud-Backup & Sync</li>
-                  <li>Nachtlicht-Funktion</li>
-                  <li>Notfall-Modus</li>
-                  <li>Dark Mode & Anpassungen</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h3>🔒 Sicherheit & Datenschutz</h3>
-                <p>Deine Daten gehören dir! Alles wird lokal gespeichert. Cloud-Backup ist optional und verschlüsselt.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h3>💝 Entwickelt mit Liebe</h3>
-                <p>Made with ❤️ for safe babysitting</p>
-                <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
-                  © 2026 SitterSafe<br/>
-                  Alle Rechte vorbehalten
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card style={{ background: '#f0f9ff' }}>
-              <CardContent style={{ textAlign: 'center' }}>
-                <h4>Kontakt</h4>
-                <div style={{ fontSize: '14px' }}>
-                  📧 info@sittersafe.app<br/>
-                  🌐 www.sittersafe.app<br/>
-                  📱 @sittersafe
-                </div>
-              </CardContent>
-            </Card>
-          </Block>
-        </PageContent>
+        </div>
       </Sheet>
     </Page>
   );
