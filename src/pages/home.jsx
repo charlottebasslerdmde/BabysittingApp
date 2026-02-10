@@ -207,15 +207,15 @@ const HomePage = () => {
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const newEvent = { id: Date.now(), time: timeString, activity, icon, color };
     setEventLog([newEvent, ...eventLog]);
-    f7.toast.show({ text: `${activity} gespeichert`, closeTimeout: 1000, position: 'center', cssClass: 'toast-success' });
+    f7.toast.show({ text: `${activity} ${t('tracker_saved')}`, closeTimeout: 1000, position: 'center', cssClass: 'toast-success' });
   };
 
   const openActivityDetail = (type) => {
     const configs = {
-      essen: { title: 'Essen', icon: '🍼', details: { was: '', menge: '', notizen: '' } },
-      schlaf: { title: 'Schlaf', icon: '😴', details: { von: '', bis: '', qualitaet: '' } },
-      windel: { title: 'Windel', icon: '💩', details: { art: 'nass', notizen: '' } },
-      spiel: { title: 'Spielzeit', icon: '🧸', details: { aktivitaet: '', dauer: '', notizen: '' } }
+      essen: { title: t('activity_food_title'), icon: '🍼', details: { was: '', menge: '', notizen: '' } },
+      schlaf: { title: t('activity_sleep_title'), icon: '😴', details: { von: '', bis: '', qualitaet: '' } },
+      windel: { title: t('activity_diaper_title'), icon: '💩', details: { art: 'nass', notizen: '' } },
+      spiel: { title: t('activity_play_title'), icon: '🧸', details: { aktivitaet: '', dauer: '', notizen: '' } }
     };
     setActivitySheet({ 
       opened: true, 
@@ -259,7 +259,7 @@ const HomePage = () => {
     };
     setEventLog([newEvent, ...eventLog]);
     setActivitySheet({ ...activitySheet, opened: false });
-    f7.toast.show({ text: `${title} gespeichert ${mood}`, closeTimeout: 1500, position: 'center' });
+    f7.toast.show({ text: `${title} ${t('tracker_saved')} ${mood}`, closeTimeout: 1500, position: 'center' });
   };
 
   const updateActivityDetail = (field, value) => {
@@ -274,11 +274,11 @@ const HomePage = () => {
     setLastDeleted(event);
     setEventLog(eventLog.filter(e => e.id !== eventId));
     f7.toast.show({ 
-      text: 'Gelöscht', 
+      text: t('tracker_deleted'), 
       closeTimeout: 3000, 
       position: 'center',
       closeButton: true,
-      closeButtonText: 'Rückgängig',
+      closeButtonText: t('tracker_undo'),
       closeButtonColor: 'blue',
       on: {
         close: (toast, closeByButton) => {
@@ -304,37 +304,37 @@ const HomePage = () => {
 
   const shareProtocol = async () => {
     if (eventLog.length === 0) {
-      f7.toast.show({ text: 'Nichts zu teilen!', closeTimeout: 2000 });
+      f7.toast.show({ text: t('tracker_nothing_to_share'), closeTimeout: 2000 });
       return;
     }
     const reportText = eventLog.map(e => `⏰ ${e.time}: ${e.activity}`).join('\n');
-    const footer = "\n\nGesendet mit SitterSafe 🛡️";
+    const footer = `\n\n${t('tracker_share_footer')}`;
     
     try {
       // Capacitor Share API (für native Apps)
       if (typeof Share !== 'undefined' && Share.share) {
         await Share.share({
-          title: 'SitterSafe Protokoll',
-          text: `Protokoll von heute:\n\n${reportText}${footer}`,
+          title: `SitterSafe ${t('tracker_protocol_today')}`,
+          text: `${reportText}${footer}`,
           dialogTitle: 'Teilen via',
         });
       }
       // Web Share API (Browser Fallback)
       else if (navigator.share) {
         await navigator.share({
-          title: 'SitterSafe Protokoll',
-          text: `Protokoll von heute:\n\n${reportText}${footer}`,
+          title: `SitterSafe ${t('tracker_protocol_today')}`,
+          text: `${reportText}${footer}`,
         });
       }
       // Fallback: Text kopieren
       else {
-        await navigator.clipboard.writeText(`Protokoll von heute:\n\n${reportText}${footer}`);
-        f7.toast.show({ text: '📋 In Zwischenablage kopiert', closeTimeout: 2000 });
+        await navigator.clipboard.writeText(`${reportText}${footer}`);
+        f7.toast.show({ text: t('tracker_protocol_copied'), closeTimeout: 2000 });
       }
     } catch (e) { 
       if (e.name !== 'AbortError') {
         console.log('Share-Fehler:', e);
-        f7.toast.show({ text: 'Teilen fehlgeschlagen', closeTimeout: 2000 });
+        f7.toast.show({ text: t('tracker_share_failed'), closeTimeout: 2000 });
       }
     }
   };
@@ -349,13 +349,13 @@ const HomePage = () => {
             <div style="font-size: 48px; margin-bottom: 15px;">📱</div>
             <p><b>SitterSafe zum Home-Screen hinzufügen:</b></p>
             <ol style="text-align: left; margin: 15px 0; line-height: 1.8;">
-              <li>Tippe auf das <b>Teilen-Symbol</b> <span style="font-size: 20px;">⎋</span> unten</li>
-              <li>Scrolle und wähle <b>"Zum Home-Bildschirm"</b></li>
-              <li>Tippe auf <b>"Hinzufügen"</b></li>
+              <li>${t('tracker_install_ios_step1')}</li>
+              <li>${t('tracker_install_ios_step2')}</li>
+              <li>${t('tracker_install_ios_step3')}</li>
             </ol>
-            <p>Danach kannst du SitterSafe wie eine normale App öffnen! 🎉</p>
+            <p>${t('tracker_install_ios_footer')}</p>
           </div>`,
-          'Installation'
+          t('tracker_install_ios_title')
         );
       } else {
         f7.toast.show({ 
@@ -387,7 +387,7 @@ const HomePage = () => {
     setShowInstallBanner(false);
     localStorage.setItem('sitterSafe_installDismissed', 'true');
     f7.toast.show({ 
-      text: 'Du kannst die App jederzeit über die Browser-Einstellungen installieren', 
+      text: t('tracker_install_dismissed'), 
       closeTimeout: 3000 
     });
   };
@@ -422,9 +422,9 @@ const HomePage = () => {
       </Navbar>
 
       <Toolbar tabbar labels bottom>
-        <Link tabLink="#tab-tracker" tabLinkActive iconIos="f7:clock_fill" iconMd="material:schedule" text="Tracker" />
-        <Link tabLink="#tab-kinder" iconIos="f7:person_2_fill" iconMd="material:people" text="Kinder" />
-        <Link tabLink="#tab-fotos" iconIos="f7:camera_fill" iconMd="material:camera_alt" text="Fotos" />
+        <Link tabLink="#tab-tracker" tabLinkActive iconIos="f7:clock_fill" iconMd="material:schedule" text={t('tracker_title')} />
+        <Link tabLink="#tab-kinder" iconIos="f7:person_2_fill" iconMd="material:people" text={t('tracker_children')} />
+        <Link tabLink="#tab-fotos" iconIos="f7:camera_fill" iconMd="material:camera_alt" text={t('tracker_photos')} />
       </Toolbar>
 
       <Tabs>
@@ -446,10 +446,10 @@ const HomePage = () => {
                   <div style={{ fontSize: '40px' }}>📱</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '4px' }}>
-                      App installieren
+                      {t('tracker_install_app')}
                     </div>
                     <div style={{ fontSize: '13px', opacity: 0.95 }}>
-                      Zum Home-Screen hinzufügen für schnelleren Zugriff
+                      {t('tracker_install_description')}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
@@ -463,7 +463,7 @@ const HomePage = () => {
                       }}
                       onClick={handleInstallClick}
                     >
-                      Installieren
+                      {t('tracker_install_button')}
                     </Button>
                     <Button 
                       small
@@ -473,7 +473,7 @@ const HomePage = () => {
                         color: 'white'
                       }}
                     >
-                      Später
+                      {t('tracker_install_later')}
                     </Button>
                   </div>
                 </div>
@@ -482,9 +482,9 @@ const HomePage = () => {
           )}
           
           {showFact && (
-            <Card outline className="no-shadow" style={{marginTop: showInstallBanner ? '16px' : '8px'}}>
+            <Card outline className="no-shadow" style={{marginTop: '8px'}}>
               <CardHeader>
-                <div><Icon icon="f7:lightbulb_fill" color="yellow" size="20"/> Wusstest du?</div>
+                <div><Icon icon="f7:lightbulb_fill" color="yellow" size="20"/> {t('tracker_fact_title')}</div>
                 <Link icon="f7:multiply" onClick={() => setShowFact(false)} />
               </CardHeader>
               <CardContent>{dailyFact}</CardContent>
@@ -495,30 +495,30 @@ const HomePage = () => {
           {eventLog.length > 0 && (
             <Card style={{margin: '16px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white'}}>
               <CardContent>
-                <div style={{fontWeight: 'bold', marginBottom: '12px', fontSize: '16px'}}>📊 Heute</div>
+                <div style={{fontWeight: 'bold', marginBottom: '12px', fontSize: '16px'}}>📊 {t('tracker_today')}</div>
                 <div style={{display: 'flex', justifyContent: 'space-around', fontSize: '14px'}}>
                   <div style={{textAlign: 'center'}}>
                     <div style={{fontSize: '24px', fontWeight: 'bold'}}>{getStatistics().essen}</div>
-                    <div>🍼 Essen</div>
+                    <div>🍼 {t('tracker_food')}</div>
                   </div>
                   <div style={{textAlign: 'center'}}>
                     <div style={{fontSize: '24px', fontWeight: 'bold'}}>{getStatistics().schlaf}</div>
-                    <div>😴 Schlaf</div>
+                    <div>😴 {t('tracker_sleep')}</div>
                   </div>
                   <div style={{textAlign: 'center'}}>
                     <div style={{fontSize: '24px', fontWeight: 'bold'}}>{getStatistics().windel}</div>
-                    <div>💩 Windel</div>
+                    <div>💩 {t('tracker_diaper')}</div>
                   </div>
                   <div style={{textAlign: 'center'}}>
                     <div style={{fontSize: '24px', fontWeight: 'bold'}}>{getStatistics().spiel}</div>
-                    <div>🧸 Spiel</div>
+                    <div>🧸 {t('tracker_play')}</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          <BlockTitle>Aktivität erfassen</BlockTitle>
+          <BlockTitle>{t('tracker_record_activity')}</BlockTitle>
           <div className="grid grid-cols-2 grid-gap padding-horizontal">
             <div onClick={() => openActivityDetail('essen')} style={{
               textAlign:'center', padding:'20px', cursor: 'pointer',
@@ -526,7 +526,7 @@ const HomePage = () => {
               transition: 'transform 0.2s', border: '2px solid #007aff'
             }} onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'} onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}>
               <div style={{fontSize:'40px'}}>🍼</div>
-              <div style={{fontWeight:'bold', color: '#007aff'}}>Essen</div>
+              <div style={{fontWeight:'bold', color: '#007aff'}}>{t('tracker_food')}</div>
             </div>
             
             <div onClick={() => openActivityDetail('schlaf')} style={{
@@ -535,7 +535,7 @@ const HomePage = () => {
               transition: 'transform 0.2s', border: '2px solid #ff9500'
             }} onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'} onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}>
               <div style={{fontSize:'40px'}}>😴</div>
-              <div style={{fontWeight:'bold', color: '#ff9500'}}>Schlaf</div>
+              <div style={{fontWeight:'bold', color: '#ff9500'}}>{t('tracker_sleep')}</div>
             </div>
             
             <div onClick={() => openActivityDetail('windel')} style={{
@@ -544,7 +544,7 @@ const HomePage = () => {
               transition: 'transform 0.2s', border: '2px solid #34c759'
             }} onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'} onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}>
               <div style={{fontSize:'40px'}}>💩</div>
-              <div style={{fontWeight:'bold', color: '#34c759'}}>Windel</div>
+              <div style={{fontWeight:'bold', color: '#34c759'}}>{t('tracker_diaper')}</div>
             </div>
             
             <div onClick={() => openActivityDetail('spiel')} style={{
@@ -553,21 +553,21 @@ const HomePage = () => {
               transition: 'transform 0.2s', border: '2px solid #af52de'
             }} onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'} onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}>
               <div style={{fontSize:'40px'}}>🧸</div>
-              <div style={{fontWeight:'bold', color: '#af52de'}}>Spiel</div>
+              <div style={{fontWeight:'bold', color: '#af52de'}}>{t('tracker_play')}</div>
             </div>
           </div>
 
-          <Block style={{marginTop: '16px', marginBottom: '0'}}>
+          <Block style={{marginTop: '8px', marginBottom: '0'}}>
              <Button fill color="yellow" textColor="black" href="/nightlight/" round>
                <Icon f7="lightbulb_fill" size="18px" style={{marginRight: '8px'}}/>
-               Nachtlicht einschalten
+               {t('tracker_nightlight')}
              </Button>
           </Block>
           
-          <BlockTitle>Heutiges Protokoll</BlockTitle>
+          <BlockTitle>{t('tracker_protocol_today')}</BlockTitle>
           <List mediaList inset>
             {eventLog.length === 0 ? (
-              <ListItem title="Noch keine Aktivitäten heute" footer="Tippe oben auf ein Icon" />
+              <ListItem title={t('tracker_no_activities')} footer={t('tracker_tap_icon')} />
             ) : (
               eventLog.map((log) => (
                 <ListItem key={log.id} title={log.activity} after={log.time} swipeout>
@@ -576,7 +576,7 @@ const HomePage = () => {
                     <span style={{fontSize: '20px'}}>{log.mood || ''}</span>
                   </div>
                   <SwipeoutActions right>
-                    <SwipeoutButton delete onClick={() => deleteEvent(log.id)}>Löschen</SwipeoutButton>
+                    <SwipeoutButton delete onClick={() => deleteEvent(log.id)}>{t('delete')}</SwipeoutButton>
                   </SwipeoutActions>
                 </ListItem>
               ))
@@ -586,7 +586,7 @@ const HomePage = () => {
           <Block>
             <Button fill large raised color="green" onClick={shareProtocol}>
               <Icon f7="square_arrow_up" className="margin-right" />
-              Protokoll teilen
+              {t('tracker_share_protocol')}
             </Button>
           </Block>
         </Tab>
@@ -594,10 +594,10 @@ const HomePage = () => {
 
         {/* TAB 2: KINDER PROFILE (JETZT DYNAMISCH) */}
         <Tab id="tab-kinder" className="page-content">
-          <BlockTitle>Betreute Kinder</BlockTitle>
+          <BlockTitle>{t('children_title')}</BlockTitle>
           <List mediaList>
             {kinder.length === 0 ? (
-              <ListItem title="Keine Profile gefunden" footer="Erstelle dein erstes Kind-Profil" />
+              <ListItem title={t('children_no_profiles')} footer={t('children_create_first_profile')} />
             ) : (
               kinder.map((kind) => (
                 <ListItem
@@ -621,7 +621,7 @@ const HomePage = () => {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            padding: '30px 0'
+            padding: '16px 0'
           }}>
             <Link href="/form/" style={{
               display: 'flex',
@@ -641,20 +641,20 @@ const HomePage = () => {
 
         {/* TAB 3: FOTO */}
         <Tab id="tab-fotos" className="page-content">
-          <BlockTitle>Moment festhalten</BlockTitle>
+          <BlockTitle>{t('photos_capture_moment')}</BlockTitle>
           <Block>
             <Card className="demo-card-header-pic">
               <CardContent>
                 <div style={{textAlign: 'center', padding: '20px'}}>
                   <Icon icon="f7:camera_fill" size="50" color="gray" style={{marginBottom: '10px'}}/>
-                  <p>Teile besondere Momente sicher mit den Eltern.</p>
+                  <p>{t('photos_description')}</p>
                   <Button fill large round className="file-input-wrapper">
-                    Kamera öffnen
+                    {t('photos_open_camera')}
                     <input type="file" accept="image/*" capture="camera" style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', opacity:0}} />
                   </Button>
                 </div>
               </CardContent>
-              <CardFooter><span>Fotos werden nicht lokal gespeichert.</span></CardFooter>
+              <CardFooter><span>{t('photos_not_stored')}</span></CardFooter>
             </Card>
           </Block>
         </Tab>
@@ -682,7 +682,7 @@ const HomePage = () => {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
           }}>
             <div style={{fontSize: '20px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px'}}>
-              <span style={{fontSize: '24px'}}>🛡️</span> Sicherheits-Center
+              <span style={{fontSize: '24px'}}>🛡️</span> {t('safety_center')}
             </div>
             <Button 
               fill 
@@ -695,38 +695,38 @@ const HomePage = () => {
                 minWidth: '80px'
               }}
             >
-              Fertig
+              {t('safety_done')}
             </Button>
           </div>
 
           <PageContent style={{flex: 1, overflow: 'auto'}}>
-            <BlockTitle>🚨 Im Notfall</BlockTitle>
+            <BlockTitle>🚨 {t('safety_emergency')}</BlockTitle>
             <Block className="no-margin-bottom">
               <Button large fill color="red" href="tel:112" external raised className="margin-bottom" style={{borderRadius: '12px', fontWeight: 'bold', fontSize: '18px'}}>
-                <Icon icon="f7:phone_fill" className="margin-right" /> NOTRUF 112
+                <Icon icon="f7:phone_fill" className="margin-right" /> {t('safety_emergency_call')}
               </Button>
               <div style={{marginBottom: '12px', padding: '12px', background: '#fff3cd', borderRadius: '8px', fontSize: '13px', color: '#856404', border: '1px solid #ffeaa7'}}>
-                💡 <b>Tipp:</b> Trage unten die Telefonnummern der Eltern ein, damit du sie schnell anrufen kannst!
+                💡 <b>{t('safety_tip')}</b> {t('safety_tip_text')}
               </div>
               <div className="grid grid-cols-2 grid-gap">
                 <Button large fill color="green" href={`tel:${householdData.parent1Phone}`} external disabled={!householdData.parent1Phone} style={{borderRadius: '12px', opacity: householdData.parent1Phone ? 1 : 0.5}}>
                   <Icon f7="phone_fill" style={{marginRight: '4px'}} />
-                  {householdData.parent1Name || 'Elternteil 1'}
+                  {householdData.parent1Name || `${t('safety_parent')} 1`}
                 </Button>
                 <Button large fill color="green" href={`tel:${householdData.parent2Phone}`} external disabled={!householdData.parent2Phone} style={{borderRadius: '12px', opacity: householdData.parent2Phone ? 1 : 0.5}}>
                   <Icon f7="phone_fill" style={{marginRight: '4px'}} />
-                  {householdData.parent2Name || 'Elternteil 2'}
+                  {householdData.parent2Name || `${t('safety_parent')} 2`}
                 </Button>
               </div>
             </Block>
 
-            <BlockTitle>📍 Unser Standort</BlockTitle>
+            <BlockTitle>📍 {t('safety_location_title')}</BlockTitle>
             <Card className="no-margin" style={{borderRadius: '12px', overflow: 'hidden'}}>
               <CardContent padding={false}>
                 <List noHairlinesMd form>
                   <ListInput
                     type="textarea"
-                    placeholder="📍 Adresse eingeben (für Notfälle wichtig)..."
+                    placeholder={t('safety_address_placeholder')}
                     value={householdData.address}
                     onInput={(e) => updateHouseholdData('address', e.target.value)}
                     resizable
@@ -739,10 +739,10 @@ const HomePage = () => {
               </CardContent>
             </Card>
 
-            <BlockTitle>🌙 Heute Abend</BlockTitle>
+            <BlockTitle>🌙 {t('safety_tonight')}</BlockTitle>
             <List inset strong style={{borderRadius: '12px'}}>
               <ListInput 
-                label="Rückkehr um:" 
+                label={t('safety_return_time')} 
                 type="time" 
                 value={shiftData.returnTime} 
                 onInput={(e) => setShiftData({...shiftData, returnTime: e.target.value})}
@@ -750,9 +750,9 @@ const HomePage = () => {
                 <Icon slot="media" f7="clock_fill" color="orange" />
               </ListInput>
               <ListInput 
-                label="Eltern sind:" 
+                label={t('safety_parents_location')} 
                 type="text" 
-                placeholder="z.B. Restaurant, Kino..."
+                placeholder={t('safety_parents_location_placeholder')}
                 value={shiftData.parentsLocation} 
                 onInput={(e) => setShiftData({...shiftData, parentsLocation: e.target.value})}
                 clearButton
@@ -760,9 +760,9 @@ const HomePage = () => {
                 <Icon slot="media" f7="location_fill" color="purple" />
               </ListInput>
               <ListInput 
-                label="Notizen:" 
+                label={t('activity_notes')} 
                 type="textarea" 
-                placeholder="Besondere Hinweise für heute..."
+                placeholder={t('safety_notes_placeholder')}
                 value={shiftData.notes} 
                 onInput={(e) => setShiftData({...shiftData, notes: e.target.value})} 
                 resizable
@@ -771,40 +771,40 @@ const HomePage = () => {
               </ListInput>
             </List>
 
-            <BlockTitle>🏠 Haus & Wifi</BlockTitle>
+            <BlockTitle>🏠 {t('safety_house_wifi')}</BlockTitle>
             <List inset strong accordionList>
-              <ListItem accordionItem title="📞 Notfall-Kontakte bearbeiten" style={{background: '#e8f5e9'}}>
+              <ListItem accordionItem title={`📞 ${t('safety_emergency_contacts')}`} style={{background: '#e8f5e9'}}>
                 <Icon slot="media" f7="person_2_fill" color="green" />
                 <div className="accordion-item-content">
                   <List noHairlinesMd>
                     <ListInput 
-                      label="Name Elternteil 1" 
+                      label={t('safety_parent1_name')} 
                       type="text"
-                      placeholder="z.B. Mama, Papa..."
+                      placeholder={t('safety_parent1_placeholder')}
                       value={householdData.parent1Name} 
                       onInput={(e) => updateHouseholdData('parent1Name', e.target.value)}
                       clearButton
                     />
                     <ListInput 
-                      label="Telefon 1" 
+                      label={t('safety_phone1')} 
                       type="tel" 
-                      placeholder="+49..."
+                      placeholder={t('safety_phone_placeholder')}
                       value={householdData.parent1Phone} 
                       onInput={(e) => updateHouseholdData('parent1Phone', e.target.value)}
                       clearButton
                     />
                     <ListInput 
-                      label="Name Elternteil 2" 
+                      label={t('safety_parent2_name')} 
                       type="text"
-                      placeholder="z.B. Mama, Papa..."
+                      placeholder={t('safety_parent1_placeholder')}
                       value={householdData.parent2Name} 
                       onInput={(e) => updateHouseholdData('parent2Name', e.target.value)}
                       clearButton
                     />
                     <ListInput 
-                      label="Telefon 2" 
+                      label={t('safety_phone2')} 
                       type="tel" 
-                      placeholder="+49..."
+                      placeholder={t('safety_phone_placeholder')}
                       value={householdData.parent2Phone} 
                       onInput={(e) => updateHouseholdData('parent2Phone', e.target.value)}
                       clearButton
@@ -812,22 +812,22 @@ const HomePage = () => {
                   </List>
                 </div>
               </ListItem>
-              <ListItem accordionItem title="📡 WLAN Zugangsdaten">
+              <ListItem accordionItem title={`📡 ${t('safety_wifi_credentials')}`}>
                 <Icon slot="media" f7="wifi" color="blue" />
                 <div className="accordion-item-content">
                   <List noHairlinesMd>
                     <ListInput 
-                      label="WLAN Name" 
+                      label={t('safety_wifi_name')} 
                       type="text" 
-                      placeholder="Netzwerkname..."
+                      placeholder={t('safety_wifi_name_placeholder')}
                       value={householdData.wifiName} 
                       onInput={(e) => updateHouseholdData('wifiName', e.target.value)}
                       clearButton
                     />
                     <ListInput 
-                      label="Passwort" 
+                      label={t('safety_wifi_password')} 
                       type="text" 
-                      placeholder="WLAN-Passwort..."
+                      placeholder={t('safety_wifi_password_placeholder')}
                       value={householdData.wifiPass} 
                       onInput={(e) => updateHouseholdData('wifiPass', e.target.value)}
                       clearButton
@@ -836,7 +836,6 @@ const HomePage = () => {
                 </div>
               </ListItem>
             </List>
-            <div style={{height: '80px'}}></div>
           </PageContent>
         </div>
       </Sheet>
@@ -856,7 +855,7 @@ const HomePage = () => {
               <span style={{fontSize: '24px', marginRight: '8px'}}>{activitySheet.icon}</span>
               {activitySheet.title}
             </div>
-            <Link onClick={() => setActivitySheet({...activitySheet, opened: false})}>Abbrechen</Link>
+            <Link onClick={() => setActivitySheet({...activitySheet, opened: false})}>{t('cancel')}</Link>
           </div>
 
           <PageContent>
@@ -866,12 +865,12 @@ const HomePage = () => {
               {kinder.length > 1 && (
                 <List noHairlinesMd strong inset style={{marginBottom: '16px'}}>
                   <ListInput
-                    label="Für welches Kind?"
+                    label={t('activity_which_child')}
                     type="select"
                     value={activitySheet.selectedKind || ''}
                     onInput={(e) => setActivitySheet({...activitySheet, selectedKind: e.target.value})}
                   >
-                    <option value="">Bitte wählen</option>
+                    <option value="">{t('activity_please_select')}</option>
                     {kinder.map(kind => (
                       <option key={kind.id} value={kind.id}>{kind.basis.name}</option>
                     ))}
@@ -881,7 +880,7 @@ const HomePage = () => {
 
               {/* Stimmung */}
               <div style={{marginBottom: '16px', textAlign: 'center'}}>
-                <div style={{marginBottom: '8px', fontWeight: 'bold', color: '#666'}}>Wie war die Stimmung?</div>
+                <div style={{marginBottom: '8px', fontWeight: 'bold', color: '#666'}}>{t('activity_mood')}</div>
                 <div style={{display: 'flex', justifyContent: 'center', gap: '12px'}}>
                   {['😢', '😐', '😊', '😄'].map(emoji => (
                     <div 
@@ -904,25 +903,25 @@ const HomePage = () => {
               {activitySheet.type === 'essen' && (
                 <List noHairlinesMd strong inset>
                   <ListInput
-                    label="Was wurde gegessen?"
+                    label={t('activity_what_eaten')}
                     type="text"
-                    placeholder="z.B. Brei, Apfel..."
+                    placeholder={t('activity_what_placeholder')}
                     value={activitySheet.details.was || ''}
                     onInput={(e) => updateActivityDetail('was', e.target.value)}
                     clearButton
                   />
                   <ListInput
-                    label="Menge"
+                    label={t('activity_amount')}
                     type="text"
-                    placeholder="z.B. 150ml, halber Teller..."
+                    placeholder={t('activity_amount_placeholder')}
                     value={activitySheet.details.menge || ''}
                     onInput={(e) => updateActivityDetail('menge', e.target.value)}
                     clearButton
                   />
                   <ListInput
-                    label="Notizen"
+                    label={t('activity_notes')}
                     type="textarea"
-                    placeholder="Weitere Infos..."
+                    placeholder={t('activity_notes_placeholder')}
                     value={activitySheet.details.notizen || ''}
                     onInput={(e) => updateActivityDetail('notizen', e.target.value)}
                     resizable
@@ -934,27 +933,27 @@ const HomePage = () => {
               {activitySheet.type === 'schlaf' && (
                 <List noHairlinesMd strong inset>
                   <ListInput
-                    label="Von"
+                    label={t('activity_from')}
                     type="time"
                     value={activitySheet.details.von || ''}
                     onInput={(e) => updateActivityDetail('von', e.target.value)}
                   />
                   <ListInput
-                    label="Bis"
+                    label={t('activity_to')}
                     type="time"
                     value={activitySheet.details.bis || ''}
                     onInput={(e) => updateActivityDetail('bis', e.target.value)}
                   />
                   <ListInput
-                    label="Qualität"
+                    label={t('activity_quality')}
                     type="select"
                     value={activitySheet.details.qualitaet || ''}
                     onInput={(e) => updateActivityDetail('qualitaet', e.target.value)}
                   >
-                    <option value="">Bitte wählen</option>
-                    <option value="tief">Tief & ruhig</option>
-                    <option value="normal">Normal</option>
-                    <option value="unruhig">Unruhig</option>
+                    <option value="">{t('activity_please_select')}</option>
+                    <option value="tief">{t('activity_quality_deep')}</option>
+                    <option value="normal">{t('activity_quality_normal')}</option>
+                    <option value="unruhig">{t('activity_quality_restless')}</option>
                   </ListInput>
                 </List>
               )}
@@ -963,19 +962,19 @@ const HomePage = () => {
               {activitySheet.type === 'windel' && (
                 <List noHairlinesMd strong inset>
                   <ListInput
-                    label="Art"
+                    label={t('activity_diaper_type')}
                     type="select"
                     value={activitySheet.details.art || 'nass'}
                     onInput={(e) => updateActivityDetail('art', e.target.value)}
                   >
-                    <option value="nass">💦 Nass</option>
-                    <option value="voll">💩 Voll</option>
-                    <option value="beides">💦💩 Beides</option>
+                    <option value="nass">{t('activity_diaper_wet')}</option>
+                    <option value="voll">{t('activity_diaper_full')}</option>
+                    <option value="beides">{t('activity_diaper_both')}</option>
                   </ListInput>
                   <ListInput
-                    label="Notizen"
+                    label={t('activity_notes')}
                     type="textarea"
-                    placeholder="z.B. Ausschlag, Konsistenz..."
+                    placeholder={t('activity_diaper_notes_placeholder')}
                     value={activitySheet.details.notizen || ''}
                     onInput={(e) => updateActivityDetail('notizen', e.target.value)}
                     resizable
@@ -987,25 +986,25 @@ const HomePage = () => {
               {activitySheet.type === 'spiel' && (
                 <List noHairlinesMd strong inset>
                   <ListInput
-                    label="Aktivität"
+                    label={t('activity_play_activity')}
                     type="text"
-                    placeholder="z.B. Bauklötze, Buch lesen..."
+                    placeholder={t('activity_play_placeholder')}
                     value={activitySheet.details.aktivitaet || ''}
                     onInput={(e) => updateActivityDetail('aktivitaet', e.target.value)}
                     clearButton
                   />
                   <ListInput
-                    label="Dauer"
+                    label={t('activity_duration')}
                     type="text"
-                    placeholder="z.B. 30 Min..."
+                    placeholder={t('activity_duration_placeholder')}
                     value={activitySheet.details.dauer || ''}
                     onInput={(e) => updateActivityDetail('dauer', e.target.value)}
                     clearButton
                   />
                   <ListInput
-                    label="Notizen"
+                    label={t('activity_notes')}
                     type="textarea"
-                    placeholder="Wie war die Stimmung?"
+                    placeholder={t('activity_mood_placeholder')}
                     value={activitySheet.details.notizen || ''}
                     onInput={(e) => updateActivityDetail('notizen', e.target.value)}
                     resizable
@@ -1021,7 +1020,7 @@ const HomePage = () => {
                 style={{marginTop: '16px', borderRadius: '12px'}}
               >
                 <Icon f7="checkmark_alt" style={{marginRight: '8px'}} />
-                Speichern
+                {t('save')}
               </Button>
             </Block>
           </PageContent>

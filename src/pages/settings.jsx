@@ -17,7 +17,7 @@ import {
   Sheet
 } from 'framework7-react';
 import { supabase } from '../js/supabase';
-import { useTranslation } from '../js/i18n';
+import { useTranslation, setLanguage as setI18nLanguage, getLanguage } from '../js/i18n';
 import store from '../js/store';
 import { compressImage } from '../js/imageUtils';
 
@@ -40,6 +40,7 @@ const SettingsPage = () => {
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [lastBackupDate, setLastBackupDate] = useState('Nie');
   const [profileImage, setProfileImage] = useState('');
+  const [currentLanguage, setCurrentLanguage] = useState('de');
   
   // Statistiken
   const [stats, setStats] = useState({
@@ -110,7 +111,11 @@ const SettingsPage = () => {
     const storedImage = localStorage.getItem('sitterSafe_profileImage');
     if (storedImage) setProfileImage(storedImage);
 
-    // 14. Statistiken berechnen
+    // 14. Sprache
+    const storedLanguage = getLanguage();
+    setCurrentLanguage(storedLanguage);
+
+    // 15. Statistiken berechnen
     calculateStats();
   }, []);
 
@@ -178,6 +183,14 @@ const SettingsPage = () => {
     setSoundEnabled(checked);
     localStorage.setItem('sitterSafe_sound', JSON.stringify(checked));
     f7.toast.show({text: checked ? '🔊 Sound an' : '🔇 Sound aus', closeTimeout: 1000, position: 'center'});
+  };
+
+  const changeLanguage = (e) => {
+    const lang = e.target.value;
+    setI18nLanguage(lang);
+    setCurrentLanguage(lang);
+    const message = lang === 'de' ? translate('settings_language_changed') : 'Language set to English';
+    f7.toast.show({text: message, closeTimeout: 1500, position: 'center'});
   };
 
   const toggleAutoBackup = (e) => {
@@ -769,7 +782,7 @@ const SettingsPage = () => {
                 }}
               />
               <div style={{marginTop: '8px', fontSize: '14px', opacity: 0.9}}>
-                Babysitter Profil
+                {translate('settings_babysitter_profile')}
               </div>
             </div>
           </div>
@@ -781,20 +794,20 @@ const SettingsPage = () => {
         <CardContent>
           <div style={{fontWeight: 'bold', marginBottom: '12px', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px'}}>
             <Icon f7="chart_bar_fill" color="blue" />
-            Deine Statistiken
+            {translate('settings_your_stats')}
           </div>
           <div style={{display: 'flex', justifyContent: 'space-around', textAlign: 'center'}}>
             <div>
               <div style={{fontSize: '24px', fontWeight: 'bold', color: '#667eea'}}>{stats.totalKinder}</div>
-              <div style={{fontSize: '12px', color: '#666'}}>Kinder</div>
+              <div style={{fontSize: '12px', color: '#666'}}>{translate('settings_children_count')}</div>
             </div>
             <div>
               <div style={{fontSize: '24px', fontWeight: 'bold', color: '#764ba2'}}>{stats.totalEvents}</div>
-              <div style={{fontSize: '12px', color: '#666'}}>Ereignisse</div>
+              <div style={{fontSize: '12px', color: '#666'}}>{translate('settings_events_count')}</div>
             </div>
             <div>
               <div style={{fontSize: '24px', fontWeight: 'bold', color: '#34c759'}}>{stats.storageUsed}</div>
-              <div style={{fontSize: '12px', color: '#666'}}>Speicher</div>
+              <div style={{fontSize: '12px', color: '#666'}}>{translate('settings_storage')}</div>
             </div>
           </div>
         </CardContent>
@@ -817,7 +830,7 @@ const SettingsPage = () => {
       )}
 
       {/* 1. ALLGEMEIN */}
-      <BlockTitle>Allgemein</BlockTitle>
+      <BlockTitle>{translate('settings_general')}</BlockTitle>
       <List strong inset dividersIos>
         <ListItem title="Benachrichtigungen">
           <Icon slot="media" f7="bell_fill" color="red" />
@@ -873,14 +886,25 @@ const SettingsPage = () => {
       </List>
 
       {/* 3. DARSTELLUNG & HAPTIK */}
-      <BlockTitle>Bedienung & Design</BlockTitle>
+      <BlockTitle>{translate('settings_appearance')}</BlockTitle>
       <List strong inset dividersIos>
+        <ListInput
+          label={translate('settings_language')}
+          type="select"
+          value={currentLanguage}
+          onChange={changeLanguage}
+        >
+          <Icon slot="media" f7="globe" color="blue" />
+          <option value="de">{translate('settings_language_german')}</option>
+          <option value="en">{translate('settings_language_english')}</option>
+        </ListInput>
+        
         <ListItem>
           <div slot="inner" style={{width: '100%'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
               <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                 <Icon f7="paintbrush_fill" color={themeColor} />
-                <span>Theme-Farbe</span>
+                <span>{translate('settings_theme_color_label')}</span>
               </div>
               <input 
                 type="color" 
