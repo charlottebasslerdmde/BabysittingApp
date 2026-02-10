@@ -19,6 +19,7 @@ import {
 import { supabase } from '../js/supabase';
 import { useTranslation } from '../js/i18n';
 import store from '../js/store';
+import { compressImage } from '../js/imageUtils';
 
 const SettingsPage = () => {
   // i18n Hook für automatisches Re-Rendering bei Sprachwechsel
@@ -38,8 +39,6 @@ const SettingsPage = () => {
   const [autoDeleteDays, setAutoDeleteDays] = useState('0');
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [lastBackupDate, setLastBackupDate] = useState('Nie');
-  const [tutorialOpened, setTutorialOpened] = useState(false);
-  const [helpOpened, setHelpOpened] = useState(false);
   const [profileImage, setProfileImage] = useState('');
   
   // Statistiken
@@ -382,23 +381,50 @@ const SettingsPage = () => {
     );
   };
 
-  // NEU: Profilbild hochladen
+  // NEU: Profilbild hochladen mit Kompression
   const uploadProfileImage = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const imageData = event.target.result;
-        setProfileImage(imageData);
-        localStorage.setItem('sitterSafe_profileImage', imageData);
-        f7.toast.show({text: '✅ Profilbild aktualisiert', closeTimeout: 1500});
-      };
-      reader.readAsDataURL(file);
+      try {
+        f7.preloader.show();
+        
+        // Komprimiere das Bild
+        const compressedBase64 = await compressImage(file, 300, 300, 0.7);
+        
+        setProfileImage(compressedBase64);
+        localStorage.setItem('sitterSafe_profileImage', compressedBase64);
+        
+        f7.preloader.hide();
+        f7.toast.show({
+          text: '✅ Profilbild aktualisiert', 
+          closeTimeout: 1500,
+          cssClass: 'toast-success'
+        });
+      } catch (error) {
+        f7.preloader.hide();
+        console.error('Fehler beim Aktualisieren des Profilbildes:', error);
+
+        // Spezielles Handling für Speicherprobleme (QuotaExceededError)
+        const isQuotaError =
+          error &&
+          (error.name === 'QuotaExceededError' ||
+            error.code === 22 || // manche Browser
+            error.message?.toLowerCase().includes('quota'));
+
+        const errorText = isQuotaError
+          ? 'Speicher ist voll. Bitte löschen Sie alte Daten oder versuchen Sie es später erneut.'
+          : 'Fehler beim Laden des Bildes';
+
+        f7.toast.show({
+          text: errorText,
+          closeTimeout: 2000
+        });
+      }
     };
     input.click();
   };
@@ -480,16 +506,6 @@ const SettingsPage = () => {
     } finally {
       f7.preloader.hide();
     }
-  };
-
-  // NEU: Tutorial anzeigen
-  const showTutorial = () => {
-    setTutorialOpened(true);
-  };
-
-  // NEU: Hilfe & FAQ anzeigen
-  const showHelp = () => {
-    setHelpOpened(true);
   };
 
   // NEU: Feedback senden
@@ -702,7 +718,7 @@ const SettingsPage = () => {
 
   return (
     <Page name="settings" onPageBeforeOut={handlePageBeforeOut}>
-      <Navbar title={translate('settings_title')} backLink={translate('back')} />
+      <Navbar title={translate('settings_title')} backLink="Zurück" backLinkForce={true} />
 
       {/* PROFIL CARD */}
       <Card style={{margin: '16px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white'}}>
@@ -995,14 +1011,6 @@ const SettingsPage = () => {
       {/* 5. HILFE & INFO */}
       <BlockTitle>Support & Infos</BlockTitle>
       <List strong inset dividersIos>
-        <ListItem link="#" title="Tutorial anzeigen" onClick={showTutorial}>
-          <Icon slot="media" f7="book_fill" color="blue" />
-        </ListItem>
-        
-        <ListItem link="#" title="Hilfe & FAQ" onClick={showHelp}>
-          <Icon slot="media" f7="question_circle_fill" color="gray" />
-        </ListItem>
-        
         <ListItem link="#" title="Feedback senden" onClick={sendFeedback}>
           <Icon slot="media" f7="envelope_fill" color="green" />
         </ListItem>
@@ -1030,185 +1038,6 @@ const SettingsPage = () => {
       <Fab position="right-bottom" slot="fixed" color="blue" onClick={exportData}>
         <Icon f7="arrow_down_to_line" />
       </Fab>
-
-      {/* TUTORIAL SHEET */}
-      <Sheet
-        opened={tutorialOpened}
-        onSheetClosed={() => setTutorialOpened(false)}
-        closeByBackdropClick={true}
-        closeByOutsideClick={true}
-        style={{ 
-          height: '90vh', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          borderTopLeftRadius: '16px', 
-          borderTopRightRadius: '16px' 
-        }}
-        swipeToClose
-        backdrop
-      >
-        {/* Fixierter Header */}
-        <div style={{ 
-          padding: '16px', 
-          borderBottom: '1px solid rgba(0,0,0,0.1)',
-          flexShrink: 0,
-          background: 'white',
-          position: 'sticky',
-          top: 0,
-          zIndex: 10
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>Tutorial</h3>
-            <Button fill onClick={() => setTutorialOpened(false)}>Schließen</Button>
-          </div>
-        </div>
-        
-        {/* Scrollbarer Content */}
-        <div style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
-          padding: '16px', 
-          overscrollBehavior: 'contain',
-          WebkitOverflowScrolling: 'touch'
-        }}>
-          <h2 style={{ marginTop: 0 }}>📚 SitterSafe Tutorial</h2>
-            
-            <Card>
-              <CardContent>
-                <h3>🏠 1. Kinder hinzufügen</h3>
-                <p>Tippe auf das <strong>+</strong> Symbol, um ein neues Kind anzulegen. Fülle alle wichtigen Informationen aus.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h3>📝 2. Ereignisse protokollieren</h3>
-                <p>Öffne das Kinderprofil und nutze die Schnellaktionen für Essen, Schlafen, Wickeln etc.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h3>💊 3. Medikamente</h3>
-                <p>Medikamentengabe wird mit FaceID geschützt. Aktiviere dies in den Einstellungen.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h3>🌙 4. Nachtlicht</h3>
-                <p>Nutze das Nachtlicht-Feature für sanftes Licht beim nächtlichen aufwachen.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h3>☁️ 5. Backup</h3>
-                <p>Sichere deine Daten regelmäßig über Export oder Cloud-Backup.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h3>🚨 6. Notfall-Modus</h3>
-                <p>Aktiviere den Notfall-Modus für größere Buttons und vereinfachte Navigation.</p>
-              </CardContent>
-            </Card>
-        </div>
-      </Sheet>
-
-      {/* HILFE SHEET */}
-      <Sheet
-        opened={helpOpened}
-        onSheetClosed={() => setHelpOpened(false)}
-        closeByBackdropClick={true}
-        closeByOutsideClick={true}
-        style={{ 
-          height: '90vh', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          borderTopLeftRadius: '16px', 
-          borderTopRightRadius: '16px' 
-        }}
-        swipeToClose
-        backdrop
-      >
-        {/* Fixierter Header */}
-        <div style={{ 
-          padding: '16px', 
-          borderBottom: '1px solid rgba(0,0,0,0.1)',
-          flexShrink: 0,
-          background: 'white',
-          position: 'sticky',
-          top: 0,
-          zIndex: 10
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>Hilfe & FAQ</h3>
-            <Button fill onClick={() => setHelpOpened(false)}>Schließen</Button>
-          </div>
-        </div>
-        
-        {/* Scrollbarer Content */}
-        <div style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
-          padding: '16px', 
-          overscrollBehavior: 'contain',
-          WebkitOverflowScrolling: 'touch'
-        }}>
-          <h2 style={{ marginTop: 0 }}>❓ Häufig gestellte Fragen</h2>
-            
-            <Card>
-              <CardContent>
-                <h4>Wie sichere ich meine Daten?</h4>
-                <p>Nutze "Daten exportieren" für lokale Backups oder "Cloud-Backup erstellen" für Online-Sicherung.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h4>Kann ich mehrere Geräte nutzen?</h4>
-                <p>Ja! Nutze Cloud-Backup zum Synchronisieren zwischen mehreren Geräten.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h4>Wie funktioniert FaceID?</h4>
-                <p>Aktiviere "FaceID für Medikamente" in den Sicherheitseinstellungen. Beim Zugriff auf Medikamente wird dann eine Authentifizierung verlangt.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h4>Werden meine Daten geteilt?</h4>
-                <p>Nein! Alle Daten bleiben lokal auf deinem Gerät, außer du nutzt explizit Cloud-Backup.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h4>Wie lösche ich alte Einträge?</h4>
-                <p>Stelle unter "Auto-Löschung" ein, nach wie vielen Tagen Protokolle automatisch gelöscht werden sollen.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <h4>App funktioniert nicht richtig?</h4>
-                <p>Versuche "Cache leeren" in den Einstellungen. Bei weiterhin Problemen: "App zurücksetzen" (Achtung: Alle Daten werden gelöscht!).</p>
-              </CardContent>
-            </Card>
-
-            <Card style={{ background: '#f0f9ff' }}>
-              <CardContent>
-                <h4>💡 Weitere Hilfe benötigt?</h4>
-                <p>Nutze "Feedback senden" oder kontaktiere uns: support@sittersafe.app</p>
-              </CardContent>
-            </Card>
-        </div>
-      </Sheet>
     </Page>
   );
 };

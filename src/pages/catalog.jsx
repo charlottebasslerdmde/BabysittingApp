@@ -5,6 +5,7 @@ import {
   SwipeoutButton, ListInput, Toolbar, f7 
 } from 'framework7-react';
 import { useTranslation } from '../js/i18n';
+import { compressImage, safeLocalStorageSet } from '../js/imageUtils';
 
 const KinderPage = () => {
   // i18n Hook
@@ -32,9 +33,26 @@ const KinderPage = () => {
     }
   }, []);
 
-  // Speichern bei Änderungen (Reaktivität)
+  // Speichern bei Änderungen (Reaktivität) mit Error Handling
   useEffect(() => {
-    localStorage.setItem('sitterSafe_kinder', JSON.stringify(kinder));
+    if (kinder.length === 0) return; // Nicht speichern wenn leer (beim initialen Laden)
+    
+    const result = safeLocalStorageSet('sitterSafe_kinder', kinder);
+    
+    if (!result.success) {
+      f7.dialog.alert(
+        `<div style="text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
+          <p><b>Speicher voll!</b></p>
+          <p>${result.message}</p>
+          <p style="font-size: 13px; color: #666; margin-top: 10px;">
+            💡 Tipp: Fotos werden komprimiert gespeichert. Falls das Problem weiterhin besteht,
+            versuche Fotos aus älteren Profilen zu entfernen.
+          </p>
+        </div>`,
+        'Fehler beim Speichern'
+      );
+    }
   }, [kinder]);
 
   const openAddSheet = () => {
@@ -43,15 +61,35 @@ const KinderPage = () => {
     setSheetOpened(true);
   };
 
-  // Hilfsfunktion: Foto einlesen (Base64 für LocalStorage)
-  const handlePhotoUpload = (event) => {
+  // Hilfsfunktion: Foto einlesen und komprimieren
+  const handlePhotoUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setTempPhoto(reader.result);
-      };
-      reader.readAsDataURL(file);
+      try {
+        // Zeige Loading
+        f7.preloader.show();
+        
+        // Komprimiere das Bild
+        const compressedBase64 = await compressImage(file, 400, 400, 0.7);
+        
+        setTempPhoto(compressedBase64);
+        
+        f7.preloader.hide();
+        f7.toast.show({ 
+          text: '✓ Foto komprimiert und bereit', 
+          closeTimeout: 1500, 
+          position: 'center',
+          cssClass: 'toast-success'
+        });
+      } catch (error) {
+        f7.preloader.hide();
+        console.error('Fehler beim Komprimieren:', error);
+        f7.toast.show({ 
+          text: 'Fehler beim Laden des Fotos', 
+          closeTimeout: 2000, 
+          position: 'center' 
+        });
+      }
     }
   };
 
@@ -125,11 +163,7 @@ const KinderPage = () => {
   return (
     <Page name="kinder">
       {/* Navbar gemäß iOS Design Guidelines */}
-      <Navbar title={t('kinder_page_title')}>
-        <NavRight>
-          <Link iconF7="plus" onClick={openAddSheet} />
-        </NavRight>
-      </Navbar>
+      <Navbar title={t('kinder_page_title')} />
 
       {/* Leerer Zustand (Empty State) */}
       {kinder.length === 0 && (

@@ -29,6 +29,7 @@ import {
   f7 
 } from 'framework7-react';
 import { useTranslation } from '../js/i18n';
+import { safeLocalStorageSet } from '../js/imageUtils';
 
 const HomePage = () => {
   // i18n Hook
@@ -142,14 +143,20 @@ const HomePage = () => {
     };
   }, []);
 
-  // EventLog in LocalStorage speichern (Persistierung)
+  // EventLog in LocalStorage speichern (Persistierung) mit Error Handling
   useEffect(() => {
-    localStorage.setItem('sitterSafe_eventLog', JSON.stringify(eventLog));
+    const result = safeLocalStorageSet('sitterSafe_eventLog', eventLog);
+    if (!result.success) {
+      console.error('Fehler beim Speichern des EventLogs:', result.error);
+    }
   }, [eventLog]);
 
-  // ShiftData in LocalStorage speichern (aktuelle Schicht)
+  // ShiftData in LocalStorage speichern (aktuelle Schicht) mit Error Handling
   useEffect(() => {
-    localStorage.setItem('sitterSafe_shiftData', JSON.stringify(shiftData));
+    const result = safeLocalStorageSet('sitterSafe_shiftData', shiftData);
+    if (!result.success) {
+      console.error('Fehler beim Speichern der ShiftData:', result.error);
+    }
   }, [shiftData]);
 
   // --- HILFSFUNKTIONEN ---
@@ -429,6 +436,7 @@ const HomePage = () => {
           {showInstallBanner && (
             <Card style={{
               margin: '16px',
+              marginTop: '8px',
               background: 'linear-gradient(135deg, #00e1ff 0%, #007aff 100%)',
               color: 'white',
               border: 'none'
@@ -474,7 +482,7 @@ const HomePage = () => {
           )}
           
           {showFact && (
-            <Card outline className="no-shadow">
+            <Card outline className="no-shadow" style={{marginTop: showInstallBanner ? '16px' : '8px'}}>
               <CardHeader>
                 <div><Icon icon="f7:lightbulb_fill" color="yellow" size="20"/> Wusstest du?</div>
                 <Link icon="f7:multiply" onClick={() => setShowFact(false)} />
@@ -606,12 +614,28 @@ const HomePage = () => {
                 </ListItem>
               ))
             )}
-            
-            {/* Immer sichtbar: Button zum Hinzufügen */}
-            <ListItem title="Neues Profil anlegen" link="/form/">
-              <Icon slot="media" icon="f7:plus_app" color="blue" />
-            </ListItem>
           </List>
+          
+          {/* Zentriertes Plus-Icon zum Hinzufügen */}
+          <Block style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '30px 0'
+          }}>
+            <Link href="/form/" style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              backgroundColor: '#f0f0f0',
+              transition: 'all 0.2s ease'
+            }}>
+              <Icon f7="plus" size="30px" color="blue" />
+            </Link>
+          </Block>
         </Tab>
 
 
@@ -646,71 +670,173 @@ const HomePage = () => {
         opened={sheetOpened}
         onSheetClosed={() => setSheetOpened(false)}
       >
-        <div className="sheet-modal-swipe-step">
-          <div className="display-flex padding justify-content-between align-items-center bg-color-light" style={{padding: '16px'}}>
-            <div style={{fontSize: '20px', fontWeight: 'bold'}}>🛡️ Sicherheits-Center</div>
-            <Link onClick={() => setSheetOpened(false)}>Fertig</Link>
+        <div className="sheet-modal-swipe-step" style={{height: '100%', display: 'flex', flexDirection: 'column'}}>
+          <div style={{
+            padding: '16px', 
+            background: 'linear-gradient(135deg, #ff3b30 0%, #ff6b6b 100%)',
+            color: 'white',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexShrink: 0,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{fontSize: '20px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px'}}>
+              <span style={{fontSize: '24px'}}>🛡️</span> Sicherheits-Center
+            </div>
+            <Button 
+              fill 
+              round 
+              onClick={() => setSheetOpened(false)}
+              style={{
+                background: 'white',
+                color: '#ff3b30',
+                fontWeight: 'bold',
+                minWidth: '80px'
+              }}
+            >
+              Fertig
+            </Button>
           </div>
 
-          <PageContent>
+          <PageContent style={{flex: 1, overflow: 'auto'}}>
             <BlockTitle>🚨 Im Notfall</BlockTitle>
             <Block className="no-margin-bottom">
-              <Button large fill color="red" href="tel:112" external raised className="margin-bottom">
-                <Icon icon="f7:phone_fill" className="margin-right" /> NOTRUF (112)
+              <Button large fill color="red" href="tel:112" external raised className="margin-bottom" style={{borderRadius: '12px', fontWeight: 'bold', fontSize: '18px'}}>
+                <Icon icon="f7:phone_fill" className="margin-right" /> NOTRUF 112
               </Button>
+              <div style={{marginBottom: '12px', padding: '12px', background: '#fff3cd', borderRadius: '8px', fontSize: '13px', color: '#856404', border: '1px solid #ffeaa7'}}>
+                💡 <b>Tipp:</b> Trage unten die Telefonnummern der Eltern ein, damit du sie schnell anrufen kannst!
+              </div>
               <div className="grid grid-cols-2 grid-gap">
-                <Button large fill color="green" href={`tel:${householdData.parent1Phone}`} external disabled={!householdData.parent1Phone}>{householdData.parent1Name || 'Eltern 1'}</Button>
-                <Button large fill color="green" href={`tel:${householdData.parent2Phone}`} external disabled={!householdData.parent2Phone}>{householdData.parent2Name || 'Eltern 2'}</Button>
+                <Button large fill color="green" href={`tel:${householdData.parent1Phone}`} external disabled={!householdData.parent1Phone} style={{borderRadius: '12px', opacity: householdData.parent1Phone ? 1 : 0.5}}>
+                  <Icon f7="phone_fill" style={{marginRight: '4px'}} />
+                  {householdData.parent1Name || 'Elternteil 1'}
+                </Button>
+                <Button large fill color="green" href={`tel:${householdData.parent2Phone}`} external disabled={!householdData.parent2Phone} style={{borderRadius: '12px', opacity: householdData.parent2Phone ? 1 : 0.5}}>
+                  <Icon f7="phone_fill" style={{marginRight: '4px'}} />
+                  {householdData.parent2Name || 'Elternteil 2'}
+                </Button>
               </div>
             </Block>
 
             <BlockTitle>📍 Unser Standort</BlockTitle>
-            <Card className="no-margin">
+            <Card className="no-margin" style={{borderRadius: '12px', overflow: 'hidden'}}>
               <CardContent padding={false}>
                 <List noHairlinesMd form>
                   <ListInput
                     type="textarea"
-                    placeholder="Adresse eingeben..."
+                    placeholder="📍 Adresse eingeben (für Notfälle wichtig)..."
                     value={householdData.address}
                     onInput={(e) => updateHouseholdData('address', e.target.value)}
                     resizable
-                    inputStyle={{fontSize: '18px', fontWeight: 'bold', color: '#333'}}
+                    inputStyle={{fontSize: '16px', fontWeight: '500', color: '#333'}}
+                    clearButton
                   >
-                    <Icon slot="media" f7="map_pin_ellipse" />
+                    <Icon slot="media" f7="map_pin_ellipse" color="red" />
                   </ListInput>
                 </List>
               </CardContent>
             </Card>
 
             <BlockTitle>🌙 Heute Abend</BlockTitle>
-            <List inset strong>
-              <ListInput label="Rückkehr um:" type="time" value={shiftData.returnTime} onInput={(e) => setShiftData({...shiftData, returnTime: e.target.value})} />
-              <ListInput label="Wir sind hier:" type="text" value={shiftData.parentsLocation} onInput={(e) => setShiftData({...shiftData, parentsLocation: e.target.value})} />
-              <ListInput label="Notizen:" type="textarea" value={shiftData.notes} onInput={(e) => setShiftData({...shiftData, notes: e.target.value})} resizable />
+            <List inset strong style={{borderRadius: '12px'}}>
+              <ListInput 
+                label="Rückkehr um:" 
+                type="time" 
+                value={shiftData.returnTime} 
+                onInput={(e) => setShiftData({...shiftData, returnTime: e.target.value})}
+              >
+                <Icon slot="media" f7="clock_fill" color="orange" />
+              </ListInput>
+              <ListInput 
+                label="Eltern sind:" 
+                type="text" 
+                placeholder="z.B. Restaurant, Kino..."
+                value={shiftData.parentsLocation} 
+                onInput={(e) => setShiftData({...shiftData, parentsLocation: e.target.value})}
+                clearButton
+              >
+                <Icon slot="media" f7="location_fill" color="purple" />
+              </ListInput>
+              <ListInput 
+                label="Notizen:" 
+                type="textarea" 
+                placeholder="Besondere Hinweise für heute..."
+                value={shiftData.notes} 
+                onInput={(e) => setShiftData({...shiftData, notes: e.target.value})} 
+                resizable
+              >
+                <Icon slot="media" f7="doc_text_fill" color="gray" />
+              </ListInput>
             </List>
 
             <BlockTitle>🏠 Haus & Wifi</BlockTitle>
             <List inset strong accordionList>
-              <ListItem accordionItem title="WLAN Daten anzeigen">
+              <ListItem accordionItem title="📞 Notfall-Kontakte bearbeiten" style={{background: '#e8f5e9'}}>
+                <Icon slot="media" f7="person_2_fill" color="green" />
                 <div className="accordion-item-content">
                   <List noHairlinesMd>
-                    <ListInput label="WLAN Name" type="text" value={householdData.wifiName} onInput={(e) => updateHouseholdData('wifiName', e.target.value)} />
-                    <ListInput label="Passwort" type="text" value={householdData.wifiPass} onInput={(e) => updateHouseholdData('wifiPass', e.target.value)} />
+                    <ListInput 
+                      label="Name Elternteil 1" 
+                      type="text"
+                      placeholder="z.B. Mama, Papa..."
+                      value={householdData.parent1Name} 
+                      onInput={(e) => updateHouseholdData('parent1Name', e.target.value)}
+                      clearButton
+                    />
+                    <ListInput 
+                      label="Telefon 1" 
+                      type="tel" 
+                      placeholder="+49..."
+                      value={householdData.parent1Phone} 
+                      onInput={(e) => updateHouseholdData('parent1Phone', e.target.value)}
+                      clearButton
+                    />
+                    <ListInput 
+                      label="Name Elternteil 2" 
+                      type="text"
+                      placeholder="z.B. Mama, Papa..."
+                      value={householdData.parent2Name} 
+                      onInput={(e) => updateHouseholdData('parent2Name', e.target.value)}
+                      clearButton
+                    />
+                    <ListInput 
+                      label="Telefon 2" 
+                      type="tel" 
+                      placeholder="+49..."
+                      value={householdData.parent2Phone} 
+                      onInput={(e) => updateHouseholdData('parent2Phone', e.target.value)}
+                      clearButton
+                    />
                   </List>
                 </div>
               </ListItem>
-              <ListItem accordionItem title="Kontakte bearbeiten">
+              <ListItem accordionItem title="📡 WLAN Zugangsdaten">
+                <Icon slot="media" f7="wifi" color="blue" />
                 <div className="accordion-item-content">
                   <List noHairlinesMd>
-                    <ListInput label="Name 1" value={householdData.parent1Name} onInput={(e) => updateHouseholdData('parent1Name', e.target.value)} />
-                    <ListInput label="Tel 1" type="tel" value={householdData.parent1Phone} onInput={(e) => updateHouseholdData('parent1Phone', e.target.value)} />
-                    <ListInput label="Name 2" value={householdData.parent2Name} onInput={(e) => updateHouseholdData('parent2Name', e.target.value)} />
-                    <ListInput label="Tel 2" type="tel" value={householdData.parent2Phone} onInput={(e) => updateHouseholdData('parent2Phone', e.target.value)} />
+                    <ListInput 
+                      label="WLAN Name" 
+                      type="text" 
+                      placeholder="Netzwerkname..."
+                      value={householdData.wifiName} 
+                      onInput={(e) => updateHouseholdData('wifiName', e.target.value)}
+                      clearButton
+                    />
+                    <ListInput 
+                      label="Passwort" 
+                      type="text" 
+                      placeholder="WLAN-Passwort..."
+                      value={householdData.wifiPass} 
+                      onInput={(e) => updateHouseholdData('wifiPass', e.target.value)}
+                      clearButton
+                    />
                   </List>
                 </div>
               </ListItem>
             </List>
-            <div style={{height: '50px'}}></div>
+            <div style={{height: '80px'}}></div>
           </PageContent>
         </div>
       </Sheet>

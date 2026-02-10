@@ -5,7 +5,7 @@ const DynamicRoutePage = (props) => {
   const { f7route, f7router } = props;
   return (
     <Page>
-      <Navbar title="Dynamic Route" backLink />
+      <Navbar title="Dynamische Route" backLink />
       <Block strong inset>
         <ul>
           <li>
@@ -43,7 +43,7 @@ const DynamicRoutePage = (props) => {
         </ul>
       </Block>
       <Block strong inset>
-        <Link onClick={() => f7router.back()}>Go back via Router API</Link>
+        <Link onClick={() => f7router.back()}>Zurück via Router API</Link>
       </Block>
     </Page>
   );

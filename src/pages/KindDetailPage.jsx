@@ -5,6 +5,7 @@ import {
   BlockTitle, SwipeoutActions, SwipeoutButton, f7, ListInput, Card 
 } from 'framework7-react';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
+import { compressImage, safeLocalStorageSet } from '../js/imageUtils';
 
 const KindDetailPage = ({ f7route }) => {
   const kindId = f7route.params.id;
@@ -80,12 +81,30 @@ const KindDetailPage = ({ f7route }) => {
     }
   }, [kindId]);
 
-  // --- 2. PERSISTENZ ---
+  // --- 2. PERSISTENZ MIT ERROR HANDLING ---
   const persistChanges = (updatedKind) => {
     setKind(updatedKind);
     const storedKinder = JSON.parse(localStorage.getItem('sitterSafe_kinder') || '[]');
     const updatedList = storedKinder.map(k => k.id === kindId ? updatedKind : k);
-    localStorage.setItem('sitterSafe_kinder', JSON.stringify(updatedList));
+    
+    const result = safeLocalStorageSet('sitterSafe_kinder', updatedList);
+    
+    if (!result.success) {
+      f7.dialog.alert(
+        `<div style="text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
+          <p><b>Speicher voll!</b></p>
+          <p>${result.message}</p>
+          <p style="font-size: 13px; color: #666; margin-top: 10px;">
+            💡 Tipp: Fotos werden komprimiert. Falls das Problem weiterhin besteht,
+            versuche das Profilfoto zu entfernen oder zu verkleinern.
+          </p>
+        </div>`,
+        'Fehler beim Speichern'
+      );
+      // Rollback
+      setKind(kind);
+    }
   };
 
   // --- 3. HELPER ---
@@ -165,38 +184,52 @@ const KindDetailPage = ({ f7route }) => {
     persistChanges(updatedKind);
   };
 
-  // --- PROFILFOTO HANDLING ---
-  const handlePhotoUpload = (e) => {
+  // --- PROFILFOTO HANDLING MIT KOMPRESSION ---
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Prüfe Dateigröße (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Prüfe Dateigröße (max 10MB Original)
+    if (file.size > 10 * 1024 * 1024) {
       f7.toast.show({ 
-        text: 'Bild zu groß (max 5MB)', 
+        text: 'Bild zu groß (max 10MB)', 
         position: 'center', 
         closeTimeout: 2000 
       });
       return;
     }
 
-    // Konvertiere zu Base64
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Image = event.target.result;
+    try {
+      // Zeige Loading
+      f7.preloader.show();
+      
+      // Komprimiere das Bild
+      const compressedBase64 = await compressImage(file, 400, 400, 0.7);
+      
       const updatedKind = {
         ...kind,
-        basis: { ...kind.basis, foto: base64Image }
+        basis: { ...kind.basis, foto: compressedBase64 }
       };
+      
       persistChanges(updatedKind);
+      
+      f7.preloader.hide();
       f7.toast.show({ 
-        text: 'Foto gespeichert', 
+        text: 'Foto komprimiert und gespeichert ✓', 
         icon: '<i class="f7-icons">checkmark_alt</i>', 
         position: 'center', 
-        closeTimeout: 1500 
+        closeTimeout: 1500,
+        cssClass: 'toast-success'
       });
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      f7.preloader.hide();
+      console.error('Fehler beim Komprimieren:', error);
+      f7.toast.show({ 
+        text: 'Fehler beim Laden des Fotos', 
+        position: 'center', 
+        closeTimeout: 2000 
+      });
+    }
   };
 
   const removePhoto = () => {

@@ -3,8 +3,8 @@ import { Page, Navbar, Block, BlockTitle } from 'framework7-react';
 
 const AboutPage = () => (
   <Page>
-    <Navbar title="About" backLink />
-    <BlockTitle>About My App</BlockTitle>
+    <Navbar title="Über" backLink />
+    <BlockTitle>Über meine App</BlockTitle>
     <Block>
       <p>
         Lorem ipsum dolor sit amet, consectetur adipisicing elit. Magni molestiae laudantium

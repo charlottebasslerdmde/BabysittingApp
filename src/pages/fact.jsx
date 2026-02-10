@@ -19,10 +19,10 @@ const FactPage = () => {
         <NavLeft>
           <Link back iconIos="f7:chevron_left" iconMd="material:chevron_left"></Link>
         </NavLeft>
-        <NavTitle>Baby Fact of the Day</NavTitle>
+        <NavTitle>Baby-Fakt des Tages</NavTitle>
       </Navbar>
       <Block>
-        <BlockTitle>Baby Fact of the Day</BlockTitle>
+        <BlockTitle>Baby-Fakt des Tages</BlockTitle>
         <p>{fact}</p>
       </Block>
     </Page>

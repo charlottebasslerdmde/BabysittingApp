@@ -134,8 +134,8 @@ const MyApp = () => {
         <Panel left cover dark>
           <View>
             <Page>
-              <Navbar title="Left Panel"/>
-              <Block>Left panel content goes here</Block>
+              <Navbar title="Linkes Panel"/>
+              <Block>Inhalt des linken Panels kommt hier hin</Block>
             </Page>
           </View>
         </Panel>
@@ -145,8 +145,8 @@ const MyApp = () => {
         <Panel right reveal dark>
           <View>
             <Page>
-              <Navbar title="Right Panel"/>
-              <Block>Right panel content goes here</Block>
+              <Navbar title="Rechtes Panel"/>
+              <Block>Inhalt des rechten Panels kommt hier hin</Block>
             </Page>
           </View>
         </Panel>
@@ -180,11 +180,11 @@ const MyApp = () => {
           <Page>
             <Navbar title="Popup">
               <NavRight>
-                <Link popupClose>Close</Link>
+                <Link popupClose>Schließen</Link>
               </NavRight>
             </Navbar>
             <Block>
-              <p>Popup content goes here.</p>
+              <p>Popup-Inhalt kommt hier hin.</p>
             </Block>
           </Page>
         </View>
@@ -193,27 +193,27 @@ const MyApp = () => {
       <LoginScreen id="my-login-screen">
         <View>
           <Page loginScreen>
-            <LoginScreenTitle>Login</LoginScreenTitle>
+            <LoginScreenTitle>Anmelden</LoginScreenTitle>
             <List form>
               <ListInput
                 type="text"
                 name="username"
-                placeholder="Your username"
+                placeholder="Dein Benutzername"
                 value={username}
                 onInput={(e) => setUsername(e.target.value)}
               ></ListInput>
               <ListInput
                 type="password"
                 name="password"
-                placeholder="Your password"
+                placeholder="Dein Passwort"
                 value={password}
                 onInput={(e) => setPassword(e.target.value)}
               ></ListInput>
             </List>
             <List>
-              <ListButton title="Sign In" onClick={() => alertLoginData()} />
+              <ListButton title="Anmelden" onClick={() => alertLoginData()} />
               <BlockFooter>
-                Some text about login information.<br />Click "Sign In" to close Login Screen
+                Informationen zur Anmeldung.<br />Klicke „Anmelden“ um den Login-Bildschirm zu schließen
               </BlockFooter>
             </List>
           </Page>

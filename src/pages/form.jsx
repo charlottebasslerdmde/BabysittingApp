@@ -12,6 +12,7 @@ import {
   Link
 } from 'framework7-react';
 import { supabase } from '../js/supabase'; // Dein Backend Import
+import { safeLocalStorageSet } from '../js/imageUtils';
 
 const FormPage = ({ f7router }) => {
   // State für die Eingabefelder
@@ -76,10 +77,28 @@ const FormPage = ({ f7router }) => {
       f7.toast.show({ text: 'Kind erfolgreich angelegt', icon: '<i class="f7-icons">checkmark_alt</i>', closeTimeout: 2000 });
     }
 
-    // 4. Lokal speichern (Update LocalStorage Cache)
+    // 4. Lokal speichern (Update LocalStorage Cache) mit Error Handling
     const currentLocal = JSON.parse(localStorage.getItem('sitterSafe_kinder') || '[]');
     const updatedLocal = [...currentLocal, newKind];
-    localStorage.setItem('sitterSafe_kinder', JSON.stringify(updatedLocal));
+    
+    const saveResult = safeLocalStorageSet('sitterSafe_kinder', updatedLocal);
+    
+    if (!saveResult.success) {
+      f7.dialog.alert(
+        `<div style="text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
+          <p><b>Speicher voll!</b></p>
+          <p>${saveResult.message}</p>
+          <p style="font-size: 13px; color: #666; margin-top: 10px;">
+            Das Kind wurde in der Cloud gespeichert, konnte aber nicht lokal gespeichert werden.
+            Bitte lösche alte Daten oder Fotos.
+          </p>
+        </div>`,
+        'Fehler beim Speichern'
+      );
+      setLoading(false);
+      return;
+    }
 
     setLoading(false);
 

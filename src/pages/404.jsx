@@ -3,10 +3,10 @@ import { Page, Navbar, Block } from 'framework7-react';
 
 const NotFoundPage = () => (
   <Page>
-    <Navbar title="Not found" backLink />
+    <Navbar title="Nicht gefunden" backLink />
     <Block strong inset>
-      <p>Sorry</p>
-      <p>Requested content not found.</p>
+      <p>Entschuldigung</p>
+      <p>Der angeforderte Inhalt wurde nicht gefunden.</p>
     </Block>
   </Page>
 );
