@@ -57,7 +57,9 @@ const KindDetailPage = ({ f7route }) => {
     label: '',
     type: 'text',
     value: '',
-    medFormData: { name: '', dosis: '', info: '' } 
+    medFormData: { name: '', dosis: '', info: '' },
+    isEdit: false,
+    editingId: null
   });
 
   // --- 1. DATEN LADEN ---
@@ -132,25 +134,45 @@ const KindDetailPage = ({ f7route }) => {
       label: 'Medikament hinzufügen',
       type: 'medication',
       value: '', 
-      medFormData: { name: '', dosis: '', info: '' }
+      medFormData: { name: '', dosis: '', info: '' },
+      isEdit: false,
+      editingId: null
     });
   };
 
   const saveField = () => {
-    const { cluster, field, value, type, medFormData } = editSheet;
+    const { cluster, field, value, type, medFormData, isEdit, editingId } = editSheet;
     let updatedKind = { ...kind };
 
     if (type === 'medication') {
-      if (!medFormData.name) {
+      // Validierung
+      if (!medFormData || !medFormData.name || medFormData.name.trim() === '') {
         f7.toast.show({ text: 'Bitte Name eingeben', position: 'center', closeTimeout: 1500 });
         return;
       }
-      const newMed = { id: Date.now().toString(), ...medFormData };
+      
+      // Stelle sicher, dass cluster und field existieren
+      if (!updatedKind[cluster]) updatedKind[cluster] = {};
+      
       const currentList = updatedKind[cluster][field] || [];
-      updatedKind = {
-        ...updatedKind,
-        [cluster]: { ...updatedKind[cluster], [field]: [...currentList, newMed] }
-      };
+      
+      if (isEdit && editingId) {
+        // Bearbeitungsmodus
+        updatedKind = {
+          ...updatedKind,
+          [cluster]: {
+            ...updatedKind[cluster],
+            [field]: currentList.map(m => m.id === editingId ? { ...medFormData, id: editingId } : m)
+          }
+        };
+      } else {
+        // Hinzufügen-Modus
+        const newMed = { id: Date.now().toString(), ...medFormData };
+        updatedKind = {
+          ...updatedKind,
+          [cluster]: { ...updatedKind[cluster], [field]: [...currentList, newMed] }
+        };
+      }
     } else {
       // Validierung für Geburtsdatum
       if (field === 'geburtsdatum' && value) {
@@ -175,7 +197,7 @@ const KindDetailPage = ({ f7route }) => {
     }
 
     persistChanges(updatedKind);
-    setEditSheet({ ...editSheet, opened: false });
+    closeEditSheet();
     f7.toast.show({ text: 'Gespeichert', icon: '<i class="f7-icons">checkmark_alt</i>', closeTimeout: 1000, position: 'center' });
   };
 
@@ -261,16 +283,27 @@ const KindDetailPage = ({ f7route }) => {
       
       const image = await Camera.getPhoto({
         quality: 70,
-        allowEditing: true,
+        allowEditing: false,
         resultType: CameraResultType.DataUrl,
         source: source,
         width: 400,
         height: 400
       });
       
+      // Flexiblere Validierung - prüfe verschiedene mögliche Formate
+      const imageData = image.dataUrl || image.base64String || image.webPath;
+      
+      if (!imageData) {
+        console.error('Kein Bilddaten erhalten:', image);
+        throw new Error('Kein Bild erhalten');
+      }
+      
+      // Stelle sicher, dass es ein data URL ist
+      const finalImageData = imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}`;
+      
       const updatedKind = {
         ...kind,
-        basis: { ...kind.basis, foto: image.dataUrl }
+        basis: { ...kind.basis, foto: finalImageData }
       };
       
       persistChanges(updatedKind);
@@ -285,14 +318,30 @@ const KindDetailPage = ({ f7route }) => {
       });
     } catch (error) {
       f7.preloader.hide();
-      if (error.message !== 'User cancelled photos app') {
-        console.error('Fehler beim Aufnehmen:', error);
-        f7.toast.show({ 
-          text: 'Fehler beim Laden des Fotos', 
-          position: 'center', 
-          closeTimeout: 2000 
-        });
+      
+      // Ignoriere Abbruch durch Benutzer
+      if (error.message === 'User cancelled photos app') {
+        return;
       }
+      
+      console.error('Fehler beim Aufnehmen:', error);
+      
+      // Detaillierte Fehlermeldung
+      let errorMsg = 'Fehler beim Laden des Fotos';
+      
+      if (error.message?.includes('permission')) {
+        errorMsg = 'Zugriff auf Galerie wurde verweigert. Bitte Berechtigungen in den Einstellungen prüfen.';
+      } else if (error.message?.includes('No camera')) {
+        errorMsg = 'Keine Kamera verfügbar';
+      } else if (error.message?.includes('Kein Bild')) {
+        errorMsg = 'Kein Bild ausgewählt oder Fehler beim Laden';
+      }
+      
+      f7.toast.show({ 
+        text: errorMsg, 
+        position: 'center', 
+        closeTimeout: 2500 
+      });
     }
   };
 
@@ -349,7 +398,6 @@ const KindDetailPage = ({ f7route }) => {
     const val = kind[cluster]?.[field];
     return (
       <ListItem 
-        link="#" 
         title={label} 
         after={val || placeholder}
         onClick={() => openEdit(cluster, field, label, type)}
@@ -359,8 +407,46 @@ const KindDetailPage = ({ f7route }) => {
     );
   };
 
+  const updateMedFormData = (field, value) => {
+    setEditSheet(prev => ({
+      ...prev,
+      medFormData: {
+        ...prev.medFormData,
+        [field]: value
+      }
+    }));
+  };
+
+  const updateEditSheetValue = (value) => {
+    setEditSheet(prev => ({
+      ...prev,
+      value: value
+    }));
+  };
+
+  const closeEditSheet = () => {
+    setEditSheet(prev => ({
+      ...prev,
+      opened: false
+    }));
+  };
+
+  const openEditMedication = (med) => {
+    setEditSheet({
+      opened: true,
+      cluster: 'sicherheit',
+      field: 'medikamente',
+      label: 'Medikament bearbeiten',
+      type: 'medication',
+      value: '',
+      medFormData: { name: med.name || '', dosis: med.dosis || '', info: med.info || '' },
+      isEdit: true,
+      editingId: med.id
+    });
+  };
+
   const RenderMedicationSection = () => {
-    const meds = kind.sicherheit.medikamente || [];
+    const meds = kind.sicherheit?.medikamente || [];
     return (
       <>
         <BlockTitle style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -372,7 +458,14 @@ const KindDetailPage = ({ f7route }) => {
             <ListItem title="Keine Medikamente" footer="Tippe auf Hinzufügen" />
           ) : (
             meds.map((med) => (
-              <ListItem key={med.id} title={med.name} after={med.dosis} text={med.info} swipeout>
+              <ListItem 
+                key={med.id} 
+                title={med.name || 'Unbekannt'} 
+                after={med.dosis || ''} 
+                text={med.info || ''} 
+                swipeout
+                onClick={() => openEditMedication(med)}
+              >
                 <Icon slot="media" f7="pills_fill" color="red" />
                 <SwipeoutActions right>
                   <SwipeoutButton delete onClick={() => deleteMedication(med.id)}>Löschen</SwipeoutButton>
@@ -573,7 +666,7 @@ const KindDetailPage = ({ f7route }) => {
       {/* EDIT SHEET */}
       <Sheet 
         opened={editSheet.opened} 
-        onSheetClosed={() => setEditSheet({...editSheet, opened: false})}
+        onSheetClosed={closeEditSheet}
         style={{height: '70%', borderTopLeftRadius: '16px', borderTopRightRadius: '16px'}}
         swipeToClose
         backdrop
@@ -581,7 +674,7 @@ const KindDetailPage = ({ f7route }) => {
         <Toolbar top>
           <div className="left" style={{paddingLeft: '16px', fontWeight: 'bold'}}>{editSheet.label}</div>
           <div className="right">
-            <Link onClick={() => setEditSheet({...editSheet, opened: false})}>Abbrechen</Link>
+            <Link onClick={closeEditSheet}>Abbrechen</Link>
           </div>
         </Toolbar>
         <div style={{
@@ -595,8 +688,8 @@ const KindDetailPage = ({ f7route }) => {
                 <>
                   <ListInput
                     label="Name" type="text" placeholder="z.B. Hustensaft"
-                    value={editSheet.medFormData.name}
-                    onInput={(e) => setEditSheet({...editSheet, medFormData: {...editSheet.medFormData, name: e.target.value}})}
+                    value={editSheet.medFormData?.name || ''}
+                    onInput={(e) => updateMedFormData('name', e.target.value)}
                     outline floatingLabel clearButton
                     style={{
                       '--f7-input-height': '44px',
@@ -605,8 +698,8 @@ const KindDetailPage = ({ f7route }) => {
                   />
                   <ListInput
                     label="Dosis" type="text" placeholder="z.B. 5ml"
-                    value={editSheet.medFormData.dosis}
-                    onInput={(e) => setEditSheet({...editSheet, medFormData: {...editSheet.medFormData, dosis: e.target.value}})}
+                    value={editSheet.medFormData?.dosis || ''}
+                    onInput={(e) => updateMedFormData('dosis', e.target.value)}
                     outline floatingLabel clearButton
                     style={{
                       '--f7-input-height': '44px',
@@ -615,8 +708,8 @@ const KindDetailPage = ({ f7route }) => {
                   />
                   <ListInput
                     label="Info" type="textarea" placeholder="Anwendung..."
-                    value={editSheet.medFormData.info}
-                    onInput={(e) => setEditSheet({...editSheet, medFormData: {...editSheet.medFormData, info: e.target.value}})}
+                    value={editSheet.medFormData?.info || ''}
+                    onInput={(e) => updateMedFormData('info', e.target.value)}
                     outline floatingLabel resizable
                   />
                 </>
@@ -627,7 +720,7 @@ const KindDetailPage = ({ f7route }) => {
                   value={editSheet.value}
                   placeholder="Eingabe..."
                   clearButton
-                  onInput={(e) => setEditSheet({...editSheet, value: e.target.value})}
+                  onInput={(e) => updateEditSheetValue(e.target.value)}
                   resizable={editSheet.type === 'textarea'}
                   outline
                   floatingLabel

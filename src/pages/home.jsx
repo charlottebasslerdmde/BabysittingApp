@@ -268,14 +268,12 @@ const HomePage = () => {
 
       if (error) {
         console.error('Error loading children from Supabase:', error);
-        // Wenn Tabelle nicht existiert (404), ignoriere den Fehler
-        if (error.code !== 'PGRST116' && error.code !== '42P01') {
-          f7.toast.show({
-            text: '⚠️ Cloud-Sync fehlgeschlagen - nutze lokale Daten',
-            position: 'center',
-            closeTimeout: 2000
-          });
-        }
+        // Fehler ignorieren und lokale Daten verwenden
+        // Unterstützte Fehlercodes:
+        // - PGRST116: Tabelle nicht gefunden
+        // - 42P01: Undefined table
+        // - NotFoundError: Objekt nicht gefunden
+        // Alle Fehler werden stillschweigend ignoriert, damit die App nicht abstürzt
         return;
       }
 
@@ -291,6 +289,7 @@ const HomePage = () => {
     } catch (error) {
       console.error('Error syncing children:', error);
       // Bei Fehler: Fallback auf localStorage (bereits geladen)
+      // Fehler wird ignoriert, damit die App nicht abstürzt
     }
   };
 
@@ -333,14 +332,8 @@ const HomePage = () => {
 
       if (error) {
         console.error('Error loading events from Supabase:', error);
-        // Wenn Tabelle nicht existiert (404), ignoriere den Fehler
-        if (error.code !== 'PGRST116' && error.code !== '42P01') {
-          f7.toast.show({
-            text: '⚠️ Cloud-Sync fehlgeschlagen - nutze lokale Daten',
-            position: 'center',
-            closeTimeout: 2000
-          });
-        }
+        // Fehler ignorieren und lokale Daten verwenden
+        // Alle Fehler werden stillschweigend ignoriert, damit die App nicht abstürzt
         return;
       }
 
@@ -632,15 +625,26 @@ const HomePage = () => {
       
       const image = await Camera.getPhoto({
         quality: 70,
-        allowEditing: true,
+        allowEditing: false,
         resultType: CameraResultType.DataUrl,
         source: source,
         width: 800,
         height: 800
       });
       
+      // Flexiblere Validierung - prüfe verschiedene mögliche Formate
+      const imageData = image.dataUrl || image.base64String || image.webPath;
+      
+      if (!imageData) {
+        console.error('Kein Bilddaten erhalten:', image);
+        throw new Error('Kein Bild erhalten');
+      }
+      
+      // Stelle sicher, dass es ein data URL ist
+      const finalImageData = imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}`;
+      
       // Lokale Vorschau setzen
-      setImage(image.dataUrl);
+      setImage(finalImageData);
 
       // Dateiname generieren
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
@@ -651,8 +655,8 @@ const HomePage = () => {
         // Auch ohne Login lokal speichern
         const newPhoto = {
           id: Date.now(),
-          url: image.dataUrl,
-          localUrl: image.dataUrl,
+          url: finalImageData,
+          localUrl: finalImageData,
           timestamp: new Date().toISOString(),
           fileName: fileName
         };
@@ -673,7 +677,7 @@ const HomePage = () => {
       }
 
       // Base64 zu Blob konvertieren für Upload
-      const base64Response = await fetch(image.dataUrl);
+      const base64Response = await fetch(finalImageData);
       const blob = await base64Response.blob();
 
       const { data, error } = await supabase.storage
@@ -688,8 +692,8 @@ const HomePage = () => {
         // Trotzdem lokal speichern
         const newPhoto = {
           id: Date.now(),
-          url: image.dataUrl,
-          localUrl: image.dataUrl,
+          url: finalImageData,
+          localUrl: finalImageData,
           timestamp: new Date().toISOString(),
           fileName: fileName
         };
@@ -716,7 +720,7 @@ const HomePage = () => {
       const newPhoto = {
         id: Date.now(),
         url: publicUrl,
-        localUrl: image.dataUrl,
+        localUrl: finalImageData,
         timestamp: new Date().toISOString(),
         fileName: fileName
       };
@@ -735,14 +739,30 @@ const HomePage = () => {
       });
     } catch (error) {
       f7.preloader.hide();
-      if (error.message !== 'User cancelled photos app') {
-        console.error('Fehler beim Aufnehmen:', error);
-        f7.toast.show({ 
-          text: 'Fehler beim Aufnehmen des Fotos', 
-          position: 'center', 
-          closeTimeout: 2000 
-        });
+      
+      // Ignoriere Abbruch durch Benutzer
+      if (error.message === 'User cancelled photos app') {
+        return;
       }
+      
+      console.error('Fehler beim Aufnehmen:', error);
+      
+      // Detaillierte Fehlermeldung
+      let errorMsg = 'Fehler beim Laden des Fotos';
+      
+      if (error.message?.includes('permission')) {
+        errorMsg = 'Zugriff auf Galerie wurde verweigert. Bitte Berechtigungen prüfen.';
+      } else if (error.message?.includes('No camera')) {
+        errorMsg = 'Keine Kamera verfügbar';
+      } else if (error.message?.includes('Kein Bild')) {
+        errorMsg = 'Kein Bild ausgewählt oder Fehler beim Laden';
+      }
+      
+      f7.toast.show({ 
+        text: errorMsg, 
+        position: 'center', 
+        closeTimeout: 2500 
+      });
     }
   };
 

@@ -118,14 +118,25 @@ const KinderPage = () => {
       
       const image = await Camera.getPhoto({
         quality: 70,
-        allowEditing: true,
+        allowEditing: false,
         resultType: CameraResultType.DataUrl,
         source: source,
         width: 400,
         height: 400
       });
       
-      setTempPhoto(image.dataUrl);
+      // Flexiblere Validierung - prüfe verschiedene mögliche Formate
+      const imageData = image.dataUrl || image.base64String || image.webPath;
+      
+      if (!imageData) {
+        console.error('Kein Bilddaten erhalten:', image);
+        throw new Error('Kein Bild erhalten');
+      }
+      
+      // Stelle sicher, dass es ein data URL ist
+      const finalImageData = imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}`;
+      
+      setTempPhoto(finalImageData);
       
       f7.preloader.hide();
       f7.toast.show({ 
@@ -136,14 +147,28 @@ const KinderPage = () => {
       });
     } catch (error) {
       f7.preloader.hide();
-      if (error.message !== 'User cancelled photos app') {
-        console.error('Fehler beim Aufnehmen:', error);
-        f7.toast.show({ 
-          text: 'Fehler beim Aufnehmen des Fotos', 
-          closeTimeout: 2000, 
-          position: 'center' 
-        });
+      
+      // Ignoriere Abbruch durch Benutzer
+      if (error.message === 'User cancelled photos app') {
+        return;
       }
+      
+      console.error('Fehler beim Aufnehmen:', error);
+      
+      // Detaillierte Fehlermeldung
+      let errorMsg = 'Fehler beim Laden des Fotos';
+      
+      if (error.message?.includes('permission')) {
+        errorMsg = 'Zugriff auf Galerie wurde verweigert. Bitte Berechtigungen prüfen.';
+      } else if (error.message?.includes('No camera')) {
+        errorMsg = 'Keine Kamera verfügbar';
+      }
+      
+      f7.toast.show({ 
+        text: errorMsg, 
+        closeTimeout: 2500, 
+        position: 'center' 
+      });
     }
   };
 
