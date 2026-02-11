@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Share } from '@capacitor/share'; 
-// import { supabase } from '../js/supabase'; // DEAKTIVIERT: Supabase für lokale Entwicklung
+import { supabase } from '../js/supabase';
 import {
   Page,
   Navbar,
@@ -35,6 +35,9 @@ const HomePage = () => {
   // i18n Hook
   const { t } = useTranslation();
   // --- STATE DEFINITIONEN ---
+  
+  // 0. Current User
+  const [currentUser, setCurrentUser] = useState(null);
   
   // 1. Tracker & Protokoll
   const [eventLog, setEventLog] = useState([]);
@@ -82,25 +85,21 @@ const HomePage = () => {
   // --- EFFEKTE (Laden beim Start) ---
 
   useEffect(() => {
-    // A) Fact of the Day laden
+    // A) Current User laden
+    loadCurrentUser();
+    
+    // B) Fact of the Day laden
     loadDailyFact();
 
-    // B) Hausdaten laden (LocalStorage)
+    // C) Hausdaten laden (LocalStorage)
     const savedHouseData = localStorage.getItem('sitterSafe_household');
     if (savedHouseData) setHouseholdData(JSON.parse(savedHouseData));
 
-    // C) Kinder laden (Supabase + LocalStorage)
+    // D) Kinder laden (Supabase + LocalStorage)
     loadKinderData();
 
-    // D) EventLog laden (Persistierung)
-    const savedEventLog = localStorage.getItem('sitterSafe_eventLog');
-    if (savedEventLog) {
-      try {
-        setEventLog(JSON.parse(savedEventLog));
-      } catch (e) {
-        console.error("Fehler beim Laden des EventLogs", e);
-      }
-    }
+    // E) EventLog laden (Supabase + LocalStorage)
+    loadEventLog();
 
     // E) ShiftData laden (aktuelle Schicht)
     const savedShiftData = localStorage.getItem('sitterSafe_shiftData');
@@ -161,6 +160,17 @@ const HomePage = () => {
 
   // --- HILFSFUNKTIONEN ---
 
+  const loadCurrentUser = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setCurrentUser(session.user);
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error);
+    }
+  };
+
   const loadDailyFact = () => {
     const babyFacts = [
       "Babys erkennen die Stimme ihrer Mutter bereits vor der Geburt.",
@@ -184,16 +194,108 @@ const HomePage = () => {
   };
 
   const loadKinderData = async () => {
-    // LocalStorage als primäre Datenquelle (Offline-First)
+    // Offline-First: Zuerst LocalStorage laden
     const local = localStorage.getItem('sitterSafe_kinder');
     if (local) {
       setKinder(JSON.parse(local));
-    } else {
-      setKinder([]); // Leeres Array wenn noch keine Kinder angelegt
     }
 
-    // Cloud-Sync deaktiviert für lokale Entwicklung
-    // Aktiviere Supabase später in Produktion wenn benötigt
+    // Dann Supabase synchronisieren (wenn User eingeloggt)
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return; // Kein User eingeloggt
+      
+      const { data, error } = await supabase
+        .from('children')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading children from Supabase:', error);
+        // Wenn Tabelle nicht existiert (404), ignoriere den Fehler
+        if (error.code !== 'PGRST116' && error.code !== '42P01') {
+          f7.toast.show({
+            text: '⚠️ Cloud-Sync fehlgeschlagen - nutze lokale Daten',
+            position: 'center',
+            closeTimeout: 2000
+          });
+        }
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Konvertiere Supabase-Format zu lokalem Format
+        const children = data.map(child => child.data);
+        setKinder(children);
+        // Cache in localStorage
+        localStorage.setItem('sitterSafe_kinder', JSON.stringify(children));
+      } else if (!local) {
+        setKinder([]); // Leeres Array wenn weder Supabase noch localStorage Daten haben
+      }
+    } catch (error) {
+      console.error('Error syncing children:', error);
+      // Bei Fehler: Fallback auf localStorage (bereits geladen)
+    }
+  };
+
+  const loadEventLog = async () => {
+    // Offline-First: Zuerst LocalStorage laden
+    const savedEventLog = localStorage.getItem('sitterSafe_eventLog');
+    if (savedEventLog) {
+      try {
+        setEventLog(JSON.parse(savedEventLog));
+      } catch (e) {
+        console.error("Fehler beim Laden des EventLogs", e);
+      }
+    }
+
+    // Dann Supabase synchronisieren (wenn User eingeloggt)
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return; // Kein User eingeloggt
+      
+      // Nur Events von heute laden
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .gte('event_time', `${today}T00:00:00`)
+        .order('event_time', { ascending: false });
+
+      if (error) {
+        console.error('Error loading events from Supabase:', error);
+        // Wenn Tabelle nicht existiert (404), ignoriere den Fehler
+        if (error.code !== 'PGRST116' && error.code !== '42P01') {
+          f7.toast.show({
+            text: '⚠️ Cloud-Sync fehlgeschlagen - nutze lokale Daten',
+            position: 'center',
+            closeTimeout: 2000
+          });
+        }
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Konvertiere Supabase-Format zu lokalem Format
+        const events = data.map(event => ({
+          id: event.id,
+          time: new Date(event.event_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          activity: event.details?.activityText || event.event_type,
+          icon: event.icon || 'circle',
+          color: event.color || 'blue',
+          details: event.details || {},
+          kindId: event.child_id,
+          mood: event.mood
+        }));
+        setEventLog(events);
+        // Cache in localStorage
+        localStorage.setItem('sitterSafe_eventLog', JSON.stringify(events));
+      }
+    } catch (error) {
+      console.error('Error syncing events:', error);
+      // Bei Fehler: Fallback auf localStorage (bereits geladen)
+    }
   };
 
   const updateHouseholdData = (field, value) => {
@@ -226,7 +328,7 @@ const HomePage = () => {
     });
   };
 
-  const saveActivityDetail = () => {
+  const saveActivityDetail = async () => {
     const { type, title, icon, details, selectedKind, mood } = activitySheet;
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -253,13 +355,46 @@ const HomePage = () => {
       activity: activityText, 
       icon: iconMap[type], 
       color: colorMap[type],
-      details,
+      details: { ...details, activityText },
       kindId: selectedKind,
       mood
     };
+    
+    // Optimistic Update: Sofort in UI anzeigen
     setEventLog([newEvent, ...eventLog]);
     setActivitySheet({ ...activitySheet, opened: false });
     f7.toast.show({ text: `${title} ${t('tracker_saved')} ${mood}`, closeTimeout: 1500, position: 'center' });
+    
+    // In Supabase speichern (Background)
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { error } = await supabase
+          .from('events')
+          .insert([{
+            user_id: session.user.id,
+            child_id: selectedKind,
+            event_type: type,
+            event_time: now.toISOString(),
+            mood: mood,
+            details: { ...details, activityText },
+            icon: iconMap[type],
+            color: colorMap[type]
+          }]);
+
+        if (error) {
+          console.error('Error saving event to Supabase:', error);
+          // Wenn Tabelle nicht existiert, zeige Hinweis
+          if (error.code === 'PGRST116' || error.code === '42P01') {
+            console.warn('⚠️ Supabase-Tabellen nicht gefunden. Führe supabase-migration.sql aus!');
+          }
+          // Event bleibt trotzdem in localStorage als Fallback
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing event:', error);
+      // Event bleibt trotzdem in localStorage
+    }
   };
 
   const updateActivityDetail = (field, value) => {

@@ -17,6 +17,7 @@ import {
   Sheet
 } from 'framework7-react';
 import { supabase } from '../js/supabase';
+import { logout } from '../js/authGuard';
 import { useTranslation, setLanguage as setI18nLanguage, getLanguage } from '../js/i18n';
 import store from '../js/store';
 import { compressImage } from '../js/imageUtils';
@@ -1020,6 +1021,34 @@ const SettingsPage = () => {
           onClick={clearCache}
         >
           <Icon slot="media" f7="trash_circle_fill" color="orange" />
+        </ListItem>
+
+        <ListItem 
+          title="Abmelden" 
+          link="#" 
+          onClick={async () => {
+            f7.dialog.confirm(
+              'Möchtest du dich wirklich abmelden?',
+              'Abmelden',
+              async () => {
+                f7.preloader.show();
+                const result = await logout(f7.views.main.router);
+                f7.preloader.hide();
+                if (result.success) {
+                  f7.toast.show({
+                    text: '✅ Erfolgreich abgemeldet',
+                    position: 'center',
+                    closeTimeout: 2000
+                  });
+                } else {
+                  f7.dialog.alert(result.error, 'Fehler beim Abmelden');
+                }
+              }
+            );
+          }}
+          textColor="orange"
+        >
+          <Icon slot="media" f7="arrow_right_square" color="orange" />
         </ListItem>
 
         <ListItem 

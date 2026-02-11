@@ -1,6 +1,8 @@
 import HomePage from '../pages/home.jsx';
 import AboutPage from '../pages/about.jsx';
 import FormPage from '../pages/form.jsx';
+import LoginPage from '../pages/Login.jsx';
+import TestPage from '../pages/test.jsx';
 
 // WICHTIG: Stelle sicher, dass die Dateinamen exakt übereinstimmen!
 import KinderPage from '../pages/kinder.jsx'; 
@@ -12,48 +14,68 @@ import DynamicRoutePage from '../pages/dynamic-route.jsx';
 import RequestAndLoad from '../pages/request-and-load.jsx';
 import NotFoundPage from '../pages/404.jsx';
 
+import { requireAuth } from './authGuard';
+
 var routes = [
   {
-  path: '/nightlight/',
-  component: NightLightPage,
+    path: '/',
+    component: LoginPage,
   },
   {
-    path: '/',
+    path: '/login/',
+    component: LoginPage,
+  },
+  {
+    path: '/nightlight/',
+    component: NightLightPage,
+    beforeEnter: requireAuth,
+  },
+  {
+    path: '/home/',
     component: HomePage,
+    beforeEnter: requireAuth,
   },
   {
     path: '/about/',
     component: AboutPage,
+    beforeEnter: requireAuth,
   },
   {
     path: '/form/',
     component: FormPage,
+    beforeEnter: requireAuth,
   },
   {
     // Die Listen-Übersicht aller Kinder
     path: '/kinder/',
     component: KinderPage,
+    beforeEnter: requireAuth,
   },
   {
     // Die Detail-Ansicht für ein spezifisches Kind
     // Der :id Parameter wird automatisch an KindDetailPage übergeben (via f7route props)
     path: '/kind/:id/',
     component: KindDetailPage,
+    beforeEnter: requireAuth,
   },
   {
     path: '/catalog/',
     component: CatalogPage,
+    beforeEnter: requireAuth,
   },
   {
     path: '/settings/',
     component: SettingsPage,
+    beforeEnter: requireAuth,
   },
   {
     path: '/dynamic-route/blog/:blogId/post/:postId/',
     component: DynamicRoutePage,
+    beforeEnter: requireAuth,
   },
   {
     path: '/request-and-load/user/:userId/',
+    beforeEnter: requireAuth,
     async: function ({ router, to, resolve }) {
       // App instance
       var app = router.app;

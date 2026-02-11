@@ -1,4 +1,30 @@
-# Babysitter
+# SitterSafe - Babysitter App
+
+> 🛡️ **Sichere Kinderbetreuung leicht gemacht**
+
+Eine moderne Progressive Web App (PWA) für Babysitter mit vollständiger Backend-Integration über Supabase.
+
+## ✨ Features
+
+- 🔐 **Benutzer-Authentifizierung** (Magic Link + Email/Passwort)
+- 📊 **Aktivitäts-Tracker** (Essen, Schlaf, Windel, Spiel)
+- 👶 **Kinderprofile** mit Gesundheitsinformationen
+- ☁️ **Cloud-Synchronisation** mit Supabase
+- 📴 **Offline-First** mit lokalem Fallback
+- 🌍 **Mehrsprachig** (Deutsch & Englisch)
+- 🎨 **Modern UI** mit Framework7
+
+## 🚀 Supabase Backend-Integration
+
+Diese App nutzt **Supabase** als Backend für:
+- Authentifizierung & User Management
+- PostgreSQL-Datenbank mit Row Level Security
+- Cloud-Backup & Synchronisation
+- Offline-First-Architektur
+
+**📖 Siehe [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) für Setup-Anleitung!**
+
+---
 
 ## Framework7 CLI Options
 
