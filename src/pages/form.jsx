@@ -29,6 +29,22 @@ const FormPage = ({ f7router }) => {
       return;
     }
 
+    // 2. Validierung: Geburtsdatum darf nicht in der Zukunft liegen
+    if (birthday) {
+      const selectedDate = new Date(birthday);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (selectedDate > today) {
+        f7.toast.show({ 
+          text: 'Geburtsdatum darf nicht in der Zukunft liegen', 
+          position: 'center', 
+          closeTimeout: 2500 
+        });
+        return;
+      }
+    }
+
     setLoading(true);
 
     // 2. Das komplette Daten-Objekt erstellen (WICHTIG für Schritt 2: Keine weißen Screens!)
@@ -143,6 +159,7 @@ const FormPage = ({ f7router }) => {
           placeholder="Geburtstag wählen"
           value={birthday}
           onInput={(e) => setBirthday(e.target.value)}
+          max={new Date().toISOString().split('T')[0]}
         />
       </List>
 

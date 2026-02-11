@@ -833,7 +833,15 @@ const SettingsPage = () => {
       {/* 1. ALLGEMEIN */}
       <BlockTitle>{translate('settings_general')}</BlockTitle>
       <List strong inset dividersIos>
-        <ListItem title="Benachrichtigungen">
+        <ListItem 
+          title="Benachrichtigungen"
+          onClick={(e) => {
+            if (!e.target.classList.contains('toggle-icon')) {
+              toggleNotifications({ target: { checked: !notifications } });
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           <Icon slot="media" f7="bell_fill" color="red" />
           <Toggle slot="after" checked={notifications} onChange={toggleNotifications} />
         </ListItem>
@@ -872,6 +880,12 @@ const SettingsPage = () => {
         <ListItem 
           title="FaceID für Medikamente" 
           footer="Schützt sensible Gesundheitsdaten"
+          onClick={(e) => {
+            if (!e.target.classList.contains('toggle-icon')) {
+              toggleBiometrics({ target: { checked: !biometricRequired } });
+            }
+          }}
+          style={{ cursor: 'pointer' }}
         >
           <Icon slot="media" f7="lock_shield_fill" color="green" />
           <Toggle slot="after" checked={biometricRequired} onChange={toggleBiometrics} />
@@ -880,6 +894,12 @@ const SettingsPage = () => {
         <ListItem 
           title="Auto-Backup (Cloud)"
           footer="Täglich automatisch sichern"
+          onClick={(e) => {
+            if (!e.target.classList.contains('toggle-icon')) {
+              toggleAutoBackup({ target: { checked: !autoBackup } });
+            }
+          }}
+          style={{ cursor: 'pointer' }}
         >
           <Icon slot="media" f7="cloud_upload_fill" color="blue" />
           <Toggle slot="after" checked={autoBackup} onChange={toggleAutoBackup} />
@@ -916,17 +936,41 @@ const SettingsPage = () => {
             </div>
           </div>
         </ListItem>
-        <ListItem title="Nachtmodus (Dark Mode)">
+        <ListItem 
+          title="Nachtmodus (Dark Mode)"
+          onClick={(e) => {
+            if (!e.target.classList.contains('toggle-icon')) {
+              toggleDarkMode({ target: { checked: !isDarkMode } });
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           <Icon slot="media" f7="moon_stars_fill" color="purple" />
           <Toggle slot="after" checked={isDarkMode} onChange={toggleDarkMode} />
         </ListItem>
         
-        <ListItem title="Vibrationen">
+        <ListItem 
+          title="Vibrationen"
+          onClick={(e) => {
+            if (!e.target.classList.contains('toggle-icon')) {
+              toggleHaptics({ target: { checked: !hapticsEnabled } });
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           <Icon slot="media" f7="hand_tap_fill" color="orange" />
           <Toggle slot="after" checked={hapticsEnabled} onChange={toggleHaptics} />
         </ListItem>
 
-        <ListItem title="Soundeffekte">
+        <ListItem 
+          title="Soundeffekte"
+          onClick={(e) => {
+            if (!e.target.classList.contains('toggle-icon')) {
+              toggleSound({ target: { checked: !soundEnabled } });
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           <Icon slot="media" f7="speaker_wave_3_fill" color="pink" />
           <Toggle slot="after" checked={soundEnabled} onChange={toggleSound} />
         </ListItem>
@@ -938,6 +982,12 @@ const SettingsPage = () => {
         <ListItem 
           title="Notfall-Modus"
           footer="Große Buttons, vereinfachte Oberfläche"
+          onClick={(e) => {
+            if (!e.target.classList.contains('toggle-icon')) {
+              toggleEmergencyMode({ target: { checked: !emergencyMode } });
+            }
+          }}
+          style={{ cursor: 'pointer' }}
         >
           <Icon slot="media" f7="exclamationmark_triangle_fill" color="red" />
           <Toggle slot="after" checked={emergencyMode} onChange={toggleEmergencyMode} />

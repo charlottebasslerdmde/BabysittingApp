@@ -1,5 +1,9 @@
+-- ========================================
 -- SitterSafe Supabase Datenbank Setup
--- Führe dieses SQL-Skript in deinem Supabase SQL Editor aus
+-- VOLLSTÄNDIGE EINRICHTUNG
+-- ========================================
+-- Kopiere dieses GESAMTE Skript und führe es im Supabase SQL Editor aus
+-- ========================================
 
 -- 1. Backups Tabelle erstellen
 CREATE TABLE IF NOT EXISTS backups (
@@ -15,11 +19,11 @@ CREATE TABLE IF NOT EXISTS backups (
 CREATE INDEX IF NOT EXISTS idx_backups_user_id ON backups(user_id);
 CREATE INDEX IF NOT EXISTS idx_backups_created_at ON backups(created_at DESC);
 
--- 3. Row Level Security (RLS) aktivieren für bessere Sicherheit
+-- 3. Row Level Security (RLS) aktivieren
 ALTER TABLE backups ENABLE ROW LEVEL SECURITY;
 
--- 4. Policy erstellen - Benutzer können nur ihre eigenen Backups sehen/erstellen
--- DEMO-MODUS: Erlaubt auch 'demo_user' ohne Authentifizierung
+-- 4. DEMO-Policies mit Demo-User Support erstellen
+-- (Erlaubt 'demo_user' ohne Authentifizierung für Entwicklung/Demo)
 CREATE POLICY "Users can view their own backups"
   ON backups FOR SELECT
   USING (auth.uid()::text = user_id OR user_id = 'demo_user');
@@ -32,7 +36,7 @@ CREATE POLICY "Users can delete their own backups"
   ON backups FOR DELETE
   USING (auth.uid()::text = user_id OR user_id = 'demo_user');
 
--- 5. Optional: Tabelle für Feedback
+-- 5. Feedback Tabelle erstellen
 CREATE TABLE IF NOT EXISTS feedback (
   id BIGSERIAL PRIMARY KEY,
   user_id TEXT,
@@ -51,7 +55,7 @@ CREATE POLICY "Anyone can submit feedback"
   ON feedback FOR INSERT
   WITH CHECK (true);
 
--- 6. Optional: Tabelle für App-Statistiken
+-- 6. Optional: App-Statistiken Tabelle
 CREATE TABLE IF NOT EXISTS app_stats (
   id BIGSERIAL PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -67,7 +71,15 @@ ALTER TABLE app_stats ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage their own stats"
   ON app_stats FOR ALL
-  USING (auth.uid()::text = user_id);
+  USING (auth.uid()::text = user_id OR user_id = 'demo_user');
 
--- Fertig! 🎉
--- Die Datenbank ist jetzt bereit für SitterSafe
+-- ========================================
+-- ✅ FERTIG! Die Datenbank ist bereit
+-- ========================================
+-- Nach dem Ausführen solltest du diese Tabellen sehen:
+-- - backups
+-- - feedback  
+-- - app_stats
+--
+-- Teste jetzt das Cloud-Backup in der App!
+-- ========================================

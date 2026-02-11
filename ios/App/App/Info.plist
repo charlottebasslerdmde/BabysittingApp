@@ -4,6 +4,12 @@
 <dict>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Zugriff auf sensible Kinder-Daten schützen</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Fotos von Kindern für Profile aufnehmen</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Fotos aus der Galerie für Kinderprofile auswählen</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Fotos in der Galerie speichern</string>
     <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>

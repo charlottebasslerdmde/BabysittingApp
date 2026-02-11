@@ -5,13 +5,13 @@ import {
   BlockTitle, SwipeoutActions, SwipeoutButton, f7, ListInput, Card 
 } from 'framework7-react';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { compressImage, safeLocalStorageSet } from '../js/imageUtils';
 
 const KindDetailPage = ({ f7route }) => {
   const kindId = f7route.params.id;
   const [kind, setKind] = useState(null);
   const [activeTab, setActiveTab] = useState('basis');
-  const fileInputRef = useRef(null);
 
   // --- NEU: Biometrie Handler mit Settings-Check ---
   const handleTabChange = async (newTab) => {
@@ -23,17 +23,16 @@ const KindDetailPage = ({ f7route }) => {
     // 2. Nur prüfen, wenn Tab "sicherheit" gewählt UND Feature in Settings aktiv
     if (newTab === 'sicherheit' && securityEnabled) {
       try {
-        const result = await NativeBiometric.verifyIdentity({
+        await NativeBiometric.verifyIdentity({
           reason: "Sicherheits-Check für Medikamente",
           title: "Authentifizierung",
           subtitle: "Bitte bestätigen",
           description: "Lege deinen Finger auf den Sensor"
         });
 
-        if (result) {
-          setActiveTab(newTab);
-          f7.toast.show({ text: 'Zugriff gewährt', icon: '<i class="f7-icons">lock_open</i>', closeTimeout: 1500 });
-        }
+        // Wenn wir hier ankommen, war die Authentifizierung erfolgreich
+        setActiveTab(newTab);
+        f7.toast.show({ text: 'Zugriff gewährt ✓', icon: '<i class="f7-icons">lock_open_fill</i>', closeTimeout: 1500, position: 'center' });
       } catch (error) {
         // Fallback für Simulator oder wenn Abbruch
         console.warn("Biometrie Fehler (oder Simulator):", error);
@@ -104,6 +103,11 @@ const KindDetailPage = ({ f7route }) => {
       );
       // Rollback
       setKind(kind);
+    } else {
+      // Event dispatchen, damit andere Seiten (z.B. Kinder-Liste) aktualisiert werden
+      window.dispatchEvent(new CustomEvent('kinderUpdated', { 
+        detail: { action: 'updated', kindId: kindId, kind: updatedKind } 
+      }));
     }
   };
 
@@ -184,31 +188,89 @@ const KindDetailPage = ({ f7route }) => {
     persistChanges(updatedKind);
   };
 
-  // --- PROFILFOTO HANDLING MIT KOMPRESSION ---
-  const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const deleteKind = () => {
+    f7.dialog.confirm(
+      `Möchtest du das Profil von "${kind.basis.name}" wirklich löschen?`,
+      'Profil löschen',
+      () => {
+        // Kind aus localStorage entfernen
+        const storedKinder = JSON.parse(localStorage.getItem('sitterSafe_kinder') || '[]');
+        const updatedKinder = storedKinder.filter(k => k.id !== kindId);
+        localStorage.setItem('sitterSafe_kinder', JSON.stringify(updatedKinder));
+        
+        // Custom Event dispatchen für andere Seiten
+        window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'deleted', kindId: kindId } }));
+        
+        // Toast anzeigen und zur Home-Seite mit Kinder-Tab navigieren
+        f7.toast.show({ 
+          text: 'Profil gelöscht', 
+          icon: '<i class="f7-icons">checkmark_alt</i>',
+          closeTimeout: 1500,
+          position: 'center'
+        });
+        
+        // Zur Home-Seite navigieren und Kinder-Tab aktivieren
+        f7.views.main.router.navigate('/', {
+          reloadCurrent: true,
+          on: {
+            pageAfterIn: () => {
+              // Kinder-Tab aktivieren
+              f7.tab.show('#tab-kinder');
+            }
+          }
+        });
+      }
+    );
+  };
 
-    // Prüfe Dateigröße (max 10MB Original)
-    if (file.size > 10 * 1024 * 1024) {
-      f7.toast.show({ 
-        text: 'Bild zu groß (max 10MB)', 
-        position: 'center', 
-        closeTimeout: 2000 
-      });
-      return;
-    }
-
+  // --- PROFILFOTO HANDLING MIT CAPACITOR CAMERA ---
+  const handlePhotoUpload = async () => {
     try {
-      // Zeige Loading
+      // Zeige Action Sheet: Kamera oder Galerie wählen
+      const buttons = [
+        {
+          text: 'Kamera',
+          onClick: () => takePicture(CameraSource.Camera)
+        },
+        {
+          text: 'Galerie',
+          onClick: () => takePicture(CameraSource.Photos)
+        },
+        {
+          text: 'Abbrechen',
+          color: 'red'
+        }
+      ];
+      
+      f7.actions.create({
+        buttons: [buttons]
+      }).open();
+    } catch (error) {
+      console.error('Fehler beim Öffnen der Kamera:', error);
+      f7.toast.show({ 
+        text: 'Fehler beim Öffnen der Kamera', 
+        closeTimeout: 2000, 
+        position: 'center' 
+      });
+    }
+  };
+
+  const takePicture = async (source) => {
+    try {
       f7.preloader.show();
       
-      // Komprimiere das Bild
-      const compressedBase64 = await compressImage(file, 400, 400, 0.7);
+      const image = await Camera.getPhoto({
+        quality: 70,
+        allowEditing: true,
+        resultType: CameraResultType.DataUrl,
+        source: source,
+        width: 400,
+        height: 400
+      });
       
       const updatedKind = {
         ...kind,
-        basis: { ...kind.basis, foto: compressedBase64 }
+        basis: { ...kind.basis, foto: image.dataUrl }
       };
       
       persistChanges(updatedKind);
@@ -223,12 +285,14 @@ const KindDetailPage = ({ f7route }) => {
       });
     } catch (error) {
       f7.preloader.hide();
-      console.error('Fehler beim Komprimieren:', error);
-      f7.toast.show({ 
-        text: 'Fehler beim Laden des Fotos', 
-        position: 'center', 
-        closeTimeout: 2000 
-      });
+      if (error.message !== 'User cancelled photos app') {
+        console.error('Fehler beim Aufnehmen:', error);
+        f7.toast.show({ 
+          text: 'Fehler beim Laden des Fotos', 
+          position: 'center', 
+          closeTimeout: 2000 
+        });
+      }
     }
   };
 
@@ -324,7 +388,21 @@ const KindDetailPage = ({ f7route }) => {
   // --- 5. HAUPT RENDER ---
   return (
     <Page name="kind-detail">
-      <Navbar backLink="Zurück" backLinkShowText={false}>
+      <Navbar 
+        backLink="Zurück" 
+        backLinkShowText={false}
+        onBackClick={() => {
+          // Zurück zur Kinder-Übersichtsseite navigieren
+          f7.views.main.router.navigate('/', {
+            on: {
+              pageAfterIn: () => {
+                // Kinder-Tab aktivieren
+                f7.tab.show('#tab-kinder');
+              }
+            }
+          });
+        }}
+      >
         <div slot="title" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
           <Icon f7="person_crop_circle_fill" size="24px" color="#667eea" />
           <span style={{fontSize: '18px', fontWeight: '600'}}>{kind.basis.name}</span>
@@ -402,19 +480,11 @@ const KindDetailPage = ({ f7route }) => {
                 )}
               </div>
               
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                accept="image/*" 
-                style={{ display: 'none' }}
-                onChange={handlePhotoUpload}
-              />
-              
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                 <Button 
                   fill 
                   small 
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={handlePhotoUpload}
                   style={{ borderRadius: '20px', background: 'white', color: '#667eea' }}
                 >
                   <Icon f7="camera_fill" size="16px" style={{ marginRight: '4px' }} />
@@ -435,7 +505,8 @@ const KindDetailPage = ({ f7route }) => {
           </Card>
 
           <List insetMd strong dividersIos outlineIos>
-            <RenderItem cluster="basis" field="name" label="Vollständiger Name" />
+            <RenderItem cluster="basis" field="name" label="Vorname" />
+            <RenderItem cluster="basis" field="nachname" label="Nachname" />
             <RenderItem cluster="basis" field="rufname" label="Rufname / Spitzname" />
             <RenderItem cluster="basis" field="geburtsdatum" label="Geburtsdatum" type="date" />
             <ListItem 
@@ -445,6 +516,20 @@ const KindDetailPage = ({ f7route }) => {
               <Icon slot="media" f7="calendar" size="16px" color="#667eea" />
             </ListItem>
           </List>
+
+          {/* Danger Zone - Profil löschen */}
+          <Block style={{ marginTop: '40px', marginBottom: '20px' }}>
+            <Button 
+              fill 
+              large
+              color="red"
+              onClick={deleteKind}
+              style={{ borderRadius: '12px' }}
+            >
+              <Icon f7="trash_fill" style={{ marginRight: '8px' }} />
+              Profil löschen
+            </Button>
+          </Block>
         </>
       )}
 
@@ -546,6 +631,7 @@ const KindDetailPage = ({ f7route }) => {
                   resizable={editSheet.type === 'textarea'}
                   outline
                   floatingLabel
+                  max={editSheet.type === 'date' ? new Date().toISOString().split('T')[0] : undefined}
                   style={{
                     '--f7-input-height': '44px',
                     '--f7-input-padding-vertical': '8px',

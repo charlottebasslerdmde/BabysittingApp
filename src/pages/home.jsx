@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Share } from '@capacitor/share'; 
+import { Share } from '@capacitor/share';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { supabase } from '../js/supabase';
 import {
   Page,
@@ -72,7 +73,8 @@ const HomePage = () => {
     title: '',
     details: {},
     selectedKind: null,
-    mood: ''
+    mood: '',
+    editingEventId: null // Für Bearbeitungsmodus
   });
 
   // 5. Undo-Funktion
@@ -81,6 +83,10 @@ const HomePage = () => {
   // 6. PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  // 7. Foto-Moment-Tagebuch
+  const [image, setImage] = useState(null);
+  const [photos, setPhotos] = useState([]);
 
   // --- EFFEKTE (Laden beim Start) ---
 
@@ -110,6 +116,9 @@ const HomePage = () => {
         console.error("Fehler beim Laden der ShiftData", e);
       }
     }
+
+    // F) Fotos laden
+    loadPhotos();
     
     // D) PWA Install Prompt registrieren
     const handleBeforeInstallPrompt = (e) => {
@@ -139,6 +148,53 @@ const HomePage = () => {
     
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  // Kinder-Daten beim Fokus auf die Seite aktualisieren
+  useEffect(() => {
+    const handlePageBeforeIn = () => {
+      // Kinder-Daten neu laden wenn Seite wieder in den Vordergrund kommt
+      loadKinderData();
+      loadEventLog();
+      loadPhotos();
+    };
+
+    // Framework7 Page Event Listener
+    const page = document.querySelector('.page[data-name="home"]');
+    if (page) {
+      page.addEventListener('page:beforein', handlePageBeforeIn);
+      
+      return () => {
+        page.removeEventListener('page:beforein', handlePageBeforeIn);
+      };
+    }
+  }, []);
+
+  // Window Focus Event - lädt Daten neu wenn Browser-Tab wieder aktiv wird
+  useEffect(() => {
+    const handleFocus = () => {
+      loadKinderData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
+  // Custom Event Listener für Kinder-Updates (von kinder.jsx)
+  useEffect(() => {
+    const handleKinderUpdate = (event) => {
+      console.log('Kinder Update Event:', event.detail);
+      loadKinderData(); // Kinder-Daten neu laden
+    };
+
+    window.addEventListener('kinderUpdated', handleKinderUpdate);
+    
+    return () => {
+      window.removeEventListener('kinderUpdated', handleKinderUpdate);
     };
   }, []);
 
@@ -238,6 +294,18 @@ const HomePage = () => {
     }
   };
 
+  const loadPhotos = async () => {
+    // Offline-First: Zuerst LocalStorage laden
+    const savedPhotos = localStorage.getItem('sitterSafe_photos');
+    if (savedPhotos) {
+      try {
+        setPhotos(JSON.parse(savedPhotos));
+      } catch (e) {
+        console.error("Fehler beim Laden der Fotos", e);
+      }
+    }
+  };
+
   const loadEventLog = async () => {
     // Offline-First: Zuerst LocalStorage laden
     const savedEventLog = localStorage.getItem('sitterSafe_eventLog');
@@ -324,12 +392,44 @@ const HomePage = () => {
       type, 
       ...configs[type],
       selectedKind: kinder.length === 1 ? kinder[0].id : null,
-      mood: '😊'
+      mood: '😊',
+      editingEventId: null
+    });
+  };
+
+  const editEvent = (eventId) => {
+    const event = eventLog.find(e => e.id === eventId);
+    if (!event) return;
+
+    // Typ aus den Details oder Icon ableiten
+    const typeMap = {
+      'mouth_fill': 'essen',
+      'moon_zzz_fill': 'schlaf',
+      'drop_fill': 'windel',
+      'gamecontroller_fill': 'spiel'
+    };
+    const type = typeMap[event.icon] || 'essen';
+
+    const configs = {
+      essen: { title: t('activity_food_title'), icon: '🍼' },
+      schlaf: { title: t('activity_sleep_title'), icon: '😴' },
+      windel: { title: t('activity_diaper_title'), icon: '💩' },
+      spiel: { title: t('activity_play_title'), icon: '🧸' }
+    };
+
+    setActivitySheet({
+      opened: true,
+      type,
+      ...configs[type],
+      details: event.details || {},
+      selectedKind: event.kindId || null,
+      mood: event.mood || '😊',
+      editingEventId: eventId
     });
   };
 
   const saveActivityDetail = async () => {
-    const { type, title, icon, details, selectedKind, mood } = activitySheet;
+    const { type, title, icon, details, selectedKind, mood, editingEventId } = activitySheet;
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
@@ -349,21 +449,41 @@ const HomePage = () => {
     const colorMap = { essen: 'blue', schlaf: 'orange', windel: 'green', spiel: 'purple' };
     const iconMap = { essen: 'mouth_fill', schlaf: 'moon_zzz_fill', windel: 'drop_fill', spiel: 'gamecontroller_fill' };
     
-    const newEvent = { 
-      id: Date.now(), 
-      time: timeString, 
-      activity: activityText, 
-      icon: iconMap[type], 
-      color: colorMap[type],
-      details: { ...details, activityText },
-      kindId: selectedKind,
-      mood
-    };
+    if (editingEventId) {
+      // Bearbeitungsmodus: Bestehenden Eintrag aktualisieren
+      const updatedEvent = {
+        id: editingEventId,
+        time: eventLog.find(e => e.id === editingEventId)?.time || timeString, // Zeit beibehalten
+        activity: activityText,
+        icon: iconMap[type],
+        color: colorMap[type],
+        details: { ...details, activityText },
+        kindId: selectedKind,
+        mood
+      };
+      
+      const updatedLog = eventLog.map(e => e.id === editingEventId ? updatedEvent : e);
+      setEventLog(updatedLog);
+      setActivitySheet({ ...activitySheet, opened: false });
+      f7.toast.show({ text: `${title} aktualisiert ${mood}`, closeTimeout: 1500, position: 'center' });
+    } else {
+      // Neu-Erstellungsmodus
+      const newEvent = { 
+        id: Date.now(), 
+        time: timeString, 
+        activity: activityText, 
+        icon: iconMap[type], 
+        color: colorMap[type],
+        details: { ...details, activityText },
+        kindId: selectedKind,
+        mood
+      };
     
-    // Optimistic Update: Sofort in UI anzeigen
-    setEventLog([newEvent, ...eventLog]);
-    setActivitySheet({ ...activitySheet, opened: false });
-    f7.toast.show({ text: `${title} ${t('tracker_saved')} ${mood}`, closeTimeout: 1500, position: 'center' });
+      // Optimistic Update: Sofort in UI anzeigen
+      setEventLog([newEvent, ...eventLog]);
+      setActivitySheet({ ...activitySheet, opened: false });
+      f7.toast.show({ text: `${title} ${t('tracker_saved')} ${mood}`, closeTimeout: 1500, position: 'center' });
+    }
     
     // In Supabase speichern (Background)
     try {
@@ -472,6 +592,171 @@ const HomePage = () => {
         f7.toast.show({ text: t('tracker_share_failed'), closeTimeout: 2000 });
       }
     }
+  };
+
+  // Foto-Upload mit Capacitor Camera
+  const uploadImage = async () => {
+    try {
+      // Zeige Action Sheet: Kamera oder Galerie wählen
+      const buttons = [
+        {
+          text: 'Kamera',
+          onClick: () => takePicture(CameraSource.Camera)
+        },
+        {
+          text: 'Galerie',
+          onClick: () => takePicture(CameraSource.Photos)
+        },
+        {
+          text: 'Abbrechen',
+          color: 'red'
+        }
+      ];
+      
+      f7.actions.create({
+        buttons: [buttons]
+      }).open();
+    } catch (error) {
+      console.error('Fehler beim Öffnen der Kamera:', error);
+      f7.toast.show({ 
+        text: 'Fehler beim Öffnen der Kamera', 
+        closeTimeout: 2000, 
+        position: 'center' 
+      });
+    }
+  };
+
+  const takePicture = async (source) => {
+    try {
+      f7.preloader.show();
+      
+      const image = await Camera.getPhoto({
+        quality: 70,
+        allowEditing: true,
+        resultType: CameraResultType.DataUrl,
+        source: source,
+        width: 800,
+        height: 800
+      });
+      
+      // Lokale Vorschau setzen
+      setImage(image.dataUrl);
+
+      // Dateiname generieren
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+      
+      // Upload zu Supabase Storage
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // Auch ohne Login lokal speichern
+        const newPhoto = {
+          id: Date.now(),
+          url: image.dataUrl,
+          localUrl: image.dataUrl,
+          timestamp: new Date().toISOString(),
+          fileName: fileName
+        };
+
+        const updatedPhotos = [newPhoto, ...photos];
+        setPhotos(updatedPhotos);
+        localStorage.setItem('sitterSafe_photos', JSON.stringify(updatedPhotos));
+        
+        f7.preloader.hide();
+        f7.toast.show({ 
+          text: '✓ Foto lokal gespeichert', 
+          icon: '<i class="f7-icons">checkmark_alt</i>',
+          position: 'center', 
+          closeTimeout: 2000,
+          cssClass: 'toast-success'
+        });
+        return;
+      }
+
+      // Base64 zu Blob konvertieren für Upload
+      const base64Response = await fetch(image.dataUrl);
+      const blob = await base64Response.blob();
+
+      const { data, error } = await supabase.storage
+        .from('photos')
+        .upload(`${session.user.id}/${fileName}`, blob, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Upload Fehler:', error);
+        // Trotzdem lokal speichern
+        const newPhoto = {
+          id: Date.now(),
+          url: image.dataUrl,
+          localUrl: image.dataUrl,
+          timestamp: new Date().toISOString(),
+          fileName: fileName
+        };
+
+        const updatedPhotos = [newPhoto, ...photos];
+        setPhotos(updatedPhotos);
+        localStorage.setItem('sitterSafe_photos', JSON.stringify(updatedPhotos));
+        
+        f7.preloader.hide();
+        f7.toast.show({ 
+          text: '✓ Foto lokal gespeichert (Cloud-Upload fehlgeschlagen)', 
+          position: 'center', 
+          closeTimeout: 2500
+        });
+        return;
+      }
+
+      // Öffentliche URL abrufen
+      const { data: { publicUrl } } = supabase.storage
+        .from('photos')
+        .getPublicUrl(data.path);
+
+      // Foto zur Liste hinzufügen
+      const newPhoto = {
+        id: Date.now(),
+        url: publicUrl,
+        localUrl: image.dataUrl,
+        timestamp: new Date().toISOString(),
+        fileName: fileName
+      };
+
+      const updatedPhotos = [newPhoto, ...photos];
+      setPhotos(updatedPhotos);
+      localStorage.setItem('sitterSafe_photos', JSON.stringify(updatedPhotos));
+
+      f7.preloader.hide();
+      f7.toast.show({ 
+        text: '✓ Foto gespeichert und hochgeladen', 
+        icon: '<i class="f7-icons">checkmark_alt</i>',
+        position: 'center', 
+        closeTimeout: 2000,
+        cssClass: 'toast-success'
+      });
+    } catch (error) {
+      f7.preloader.hide();
+      if (error.message !== 'User cancelled photos app') {
+        console.error('Fehler beim Aufnehmen:', error);
+        f7.toast.show({ 
+          text: 'Fehler beim Aufnehmen des Fotos', 
+          position: 'center', 
+          closeTimeout: 2000 
+        });
+      }
+    }
+  };
+
+  const deletePhoto = (photoId) => {
+    f7.dialog.confirm(
+      'Möchtest du dieses Foto wirklich löschen?',
+      'Foto löschen',
+      () => {
+        const updatedPhotos = photos.filter(p => p.id !== photoId);
+        setPhotos(updatedPhotos);
+        localStorage.setItem('sitterSafe_photos', JSON.stringify(updatedPhotos));
+        f7.toast.show({ text: 'Foto gelöscht', closeTimeout: 1500 });
+      }
+    );
   };
 
   // PWA Install Handler
@@ -711,6 +996,9 @@ const HomePage = () => {
                     <span style={{fontSize: '20px'}}>{log.mood || ''}</span>
                   </div>
                   <SwipeoutActions right>
+                    <SwipeoutButton color="blue" onClick={() => editEvent(log.id)}>
+                      <Icon f7="pencil" size="20px" />
+                    </SwipeoutButton>
                     <SwipeoutButton delete onClick={() => deleteEvent(log.id)}>{t('delete')}</SwipeoutButton>
                   </SwipeoutActions>
                 </ListItem>
@@ -737,7 +1025,7 @@ const HomePage = () => {
               kinder.map((kind) => (
                 <ListItem
                   key={kind.id}
-                  link={`/kind/${kind.id}/`} // Linkt zur Detailseite
+                  link={`/kind/${kind.id}/`}
                   title={kind.basis.name}
                   subtitle={kind.basis.rufname ? `"${kind.basis.rufname}"` : ''}
                   text={kind.sicherheit.allergien ? '⚠️ Allergien vermerkt' : ''}
@@ -778,20 +1066,108 @@ const HomePage = () => {
         <Tab id="tab-fotos" className="page-content">
           <BlockTitle>{t('photos_capture_moment')}</BlockTitle>
           <Block>
-            <Card className="demo-card-header-pic">
+            <Card style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              textAlign: 'center',
+              padding: '20px'
+            }}>
               <CardContent>
-                <div style={{textAlign: 'center', padding: '20px'}}>
-                  <Icon icon="f7:camera_fill" size="50" color="gray" style={{marginBottom: '10px'}}/>
-                  <p>{t('photos_description')}</p>
-                  <Button fill large round className="file-input-wrapper">
-                    {t('photos_open_camera')}
-                    <input type="file" accept="image/*" capture="camera" style={{position:'absolute', top:0, left:0, width:'100%', height:'100%', opacity:0}} />
-                  </Button>
-                </div>
+                <Icon icon="f7:camera_fill" size="60" color="white" style={{marginBottom: '15px'}}/>
+                <p style={{marginBottom: '20px', fontSize: '15px'}}>
+                  Halte besondere Momente fest und erstelle ein Foto-Tagebuch
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={uploadImage}
+                  style={{ display: 'none' }}
+                  id="camera-input"
+                />
+                <Button 
+                  fill 
+                  large 
+                  round
+                  onClick={() => document.getElementById('camera-input').click()}
+                  style={{
+                    background: 'white',
+                    color: '#667eea',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  <Icon f7="camera_fill" style={{marginRight: '8px'}} />
+                  Foto aufnehmen
+                </Button>
               </CardContent>
-              <CardFooter><span>{t('photos_not_stored')}</span></CardFooter>
             </Card>
           </Block>
+
+          {/* Foto-Galerie */}
+          {photos.length > 0 && (
+            <>
+              <BlockTitle>Foto-Galerie ({photos.length})</BlockTitle>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '12px',
+                padding: '0 16px 16px'
+              }}>
+                {photos.map((photo) => (
+                  <Card key={photo.id} style={{
+                    margin: 0,
+                    padding: 0,
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}>
+                    <img 
+                      src={photo.localUrl || photo.url} 
+                      style={{
+                        width: '100%',
+                        height: '200px',
+                        objectFit: 'cover'
+                      }} 
+                      alt="Moment"
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
+                      padding: '8px',
+                      fontSize: '11px',
+                      color: 'white',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>{new Date(photo.timestamp).toLocaleString('de-DE', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}</span>
+                      <Link 
+                        onClick={() => deletePhoto(photo.id)}
+                        style={{color: 'white'}}
+                      >
+                        <Icon f7="trash" size="18px" />
+                      </Link>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+
+          {photos.length === 0 && (
+            <Block style={{textAlign: 'center', opacity: 0.6, marginTop: '40px'}}>
+              <Icon f7="photo" size="64px" color="gray" />
+              <p>Noch keine Fotos aufgenommen</p>
+              <p style={{fontSize: '13px', color: '#999'}}>Tippe auf "Foto aufnehmen" um zu starten</p>
+            </Block>
+          )}
         </Tab>
       </Tabs>
 
@@ -988,7 +1364,7 @@ const HomePage = () => {
           <div className="display-flex padding justify-content-between align-items-center bg-color-light" style={{padding: '16px'}}>
             <div style={{fontSize: '20px', fontWeight: 'bold'}}>
               <span style={{fontSize: '24px', marginRight: '8px'}}>{activitySheet.icon}</span>
-              {activitySheet.title}
+              {activitySheet.editingEventId ? `${activitySheet.title} bearbeiten` : activitySheet.title}
             </div>
             <Link onClick={() => setActivitySheet({...activitySheet, opened: false})}>{t('cancel')}</Link>
           </div>
@@ -1155,7 +1531,7 @@ const HomePage = () => {
                 style={{marginTop: '16px', borderRadius: '12px'}}
               >
                 <Icon f7="checkmark_alt" style={{marginRight: '8px'}} />
-                {t('save')}
+                {activitySheet.editingEventId ? 'Aktualisieren' : t('save')}
               </Button>
             </Block>
           </PageContent>

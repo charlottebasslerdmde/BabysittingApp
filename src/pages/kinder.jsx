@@ -4,6 +4,7 @@ import {
   Block, Button, Sheet, PageContent, Fab, Icon, SwipeoutActions, 
   SwipeoutButton, ListInput, Toolbar, f7 
 } from 'framework7-react';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useTranslation } from '../js/i18n';
 import { compressImage, safeLocalStorageSet } from '../js/imageUtils';
 
@@ -16,13 +17,30 @@ const KinderPage = () => {
   // State für das "Kind hinzufügen" Sheet
   const [sheetOpened, setSheetOpened] = useState(false);
   const [newKindName, setNewKindName] = useState('');
-  
-  // Referenz für den File-Input (Kamera/Galerie)
-  const fileInputRef = useRef(null);
+  const [newKindNachname, setNewKindNachname] = useState('');
   const [tempPhoto, setTempPhoto] = useState(null);
 
   // Initiales Laden aus dem LocalStorage (Offline-First Ansatz)
   useEffect(() => {
+    loadKinder();
+  }, []);
+  
+  // Event-Listener für updates von anderen Seiten
+  useEffect(() => {
+    const handleKinderUpdate = (event) => {
+      console.log('Kinder updated:', event.detail);
+      loadKinder(); // Daten neu laden
+    };
+    
+    window.addEventListener('kinderUpdated', handleKinderUpdate);
+    
+    return () => {
+      window.removeEventListener('kinderUpdated', handleKinderUpdate);
+    };
+  }, []);
+  
+  // Hilfsfunktion zum Laden der Kinder aus localStorage
+  const loadKinder = () => {
     const storedKinder = localStorage.getItem('sitterSafe_kinder');
     if (storedKinder) {
       try {
@@ -31,7 +49,7 @@ const KinderPage = () => {
         console.error("Fehler beim Laden der Daten", e);
       }
     }
-  }, []);
+  };
 
   // Speichern bei Änderungen (Reaktivität) mit Error Handling
   useEffect(() => {
@@ -57,35 +75,71 @@ const KinderPage = () => {
 
   const openAddSheet = () => {
     setNewKindName('');
+    setNewKindNachname('');
     setTempPhoto(null);
     setSheetOpened(true);
   };
 
-  // Hilfsfunktion: Foto einlesen und komprimieren
-  const handlePhotoUpload = async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      try {
-        // Zeige Loading
-        f7.preloader.show();
-        
-        // Komprimiere das Bild
-        const compressedBase64 = await compressImage(file, 400, 400, 0.7);
-        
-        setTempPhoto(compressedBase64);
-        
-        f7.preloader.hide();
+  // Foto mit Capacitor Camera aufnehmen/auswählen
+  const handlePhotoUpload = async () => {
+    try {
+      // Zeige Action Sheet: Kamera oder Galerie wählen
+      const buttons = [
+        {
+          text: 'Kamera',
+          onClick: () => takePicture(CameraSource.Camera)
+        },
+        {
+          text: 'Galerie',
+          onClick: () => takePicture(CameraSource.Photos)
+        },
+        {
+          text: 'Abbrechen',
+          color: 'red'
+        }
+      ];
+      
+      f7.actions.create({
+        buttons: [buttons]
+      }).open();
+    } catch (error) {
+      console.error('Fehler beim Öffnen der Kamera:', error);
+      f7.toast.show({ 
+        text: 'Fehler beim Öffnen der Kamera', 
+        closeTimeout: 2000, 
+        position: 'center' 
+      });
+    }
+  };
+
+  const takePicture = async (source) => {
+    try {
+      f7.preloader.show();
+      
+      const image = await Camera.getPhoto({
+        quality: 70,
+        allowEditing: true,
+        resultType: CameraResultType.DataUrl,
+        source: source,
+        width: 400,
+        height: 400
+      });
+      
+      setTempPhoto(image.dataUrl);
+      
+      f7.preloader.hide();
+      f7.toast.show({ 
+        text: '✓ Foto aufgenommen', 
+        closeTimeout: 1500, 
+        position: 'center',
+        cssClass: 'toast-success'
+      });
+    } catch (error) {
+      f7.preloader.hide();
+      if (error.message !== 'User cancelled photos app') {
+        console.error('Fehler beim Aufnehmen:', error);
         f7.toast.show({ 
-          text: '✓ Foto komprimiert und bereit', 
-          closeTimeout: 1500, 
-          position: 'center',
-          cssClass: 'toast-success'
-        });
-      } catch (error) {
-        f7.preloader.hide();
-        console.error('Fehler beim Komprimieren:', error);
-        f7.toast.show({ 
-          text: 'Fehler beim Laden des Fotos', 
+          text: 'Fehler beim Aufnehmen des Fotos', 
           closeTimeout: 2000, 
           position: 'center' 
         });
@@ -104,6 +158,7 @@ const KinderPage = () => {
       id: Date.now().toString(),
       basis: {
         name: newKindName.trim(),
+        nachname: newKindNachname.trim(),
         rufname: '',
         geburtsdatum: '', // Input type date
         foto: tempPhoto || '', // Base64 String
@@ -137,6 +192,9 @@ const KinderPage = () => {
     setSheetOpened(false);
     f7.toast.show({ text: t('kinder_created_success'), icon: '<i class="f7-icons">checkmark_alt</i>', closeTimeout: 2000 });
     
+    // Custom Event dispatchen, um andere Seiten zu informieren
+    window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'added', kind: newKind } }));
+    
     // Navigation erst nach Schließen des Sheets
     setTimeout(() => {
       f7.router.navigate(`/kind/${newKind.id}/`);
@@ -147,6 +205,9 @@ const KinderPage = () => {
     f7.dialog.confirm(t('kinder_delete_confirm'), t('kinder_delete_title'), () => {
       const updatedKinder = kinder.filter(k => k.id !== id);
       setKinder(updatedKinder);
+      
+      // Custom Event dispatchen
+      window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'deleted', kindId: id } }));
     });
   };
 
@@ -186,7 +247,7 @@ const KinderPage = () => {
         {kinder.map((kind) => (
           <ListItem
             key={kind.id}
-            link={`/kind/${kind.id}/`} // Routing zur Detailseite (muss in routes.js definiert sein)
+            link={`/kind/${kind.id}/`}
             title={kind.basis.name}
             subtitle={kind.basis.rufname ? `"${kind.basis.rufname}"` : t('kinder_no_nickname')}
             text={`${t('kinder_status')}: ${kind.sicherheit.allergien ? t('kinder_allergies_warning') : t('kinder_all_ok')}`}
@@ -225,16 +286,8 @@ const KinderPage = () => {
             </div>
             
             <div style={{textAlign: 'center', marginBottom: '20px'}}>
-               {/* Versteckter File Input + Custom Button */}
-               <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="user" // Zwingt Mobile Devices zur Kamera-Option (Spezifikation 2.D)
-                  ref={fileInputRef} 
-                  style={{display: 'none'}} 
-                  onChange={handlePhotoUpload}
-               />
-               <div onClick={() => fileInputRef.current.click()} style={{cursor: 'pointer'}}>
+               {/* Capacitor Camera Button */}
+               <div onClick={handlePhotoUpload} style={{cursor: 'pointer'}}>
                  {tempPhoto ? (
                    <img src={tempPhoto} style={{width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #00e1ff'}} alt="Kind" />
                  ) : (
@@ -253,6 +306,16 @@ const KinderPage = () => {
                 placeholder={t('kinder_name_placeholder')}
                 value={newKindName}
                 onInput={(e) => setNewKindName(e.target.value)}
+                clearButton
+                outline
+                floatingLabel
+              />
+              <ListInput
+                label="Nachname"
+                type="text"
+                placeholder="z.B. Müller"
+                value={newKindNachname}
+                onInput={(e) => setNewKindNachname(e.target.value)}
                 clearButton
                 outline
                 floatingLabel

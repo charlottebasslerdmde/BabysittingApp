@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="heartGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b9d;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c94b9f;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Hintergrund mit abgerundeten Ecken (iOS Style) -->
+  <rect width="1024" height="1024" rx="180" ry="180" fill="url(#bgGradient)"/>
+  
+  <!-- Schutzschild im Hintergrund -->
+  <path d="M 512 180 L 680 240 C 680 240 680 420 680 520 C 680 680 512 780 512 780 C 512 780 344 680 344 520 C 344 420 344 240 344 240 Z" 
+        fill="rgba(255,255,255,0.15)" 
+        stroke="rgba(255,255,255,0.3)" 
+        stroke-width="8"/>
+  
+  <!-- Baby/Kind Icon (Kopf) -->
+  <circle cx="512" cy="400" r="120" fill="#ffffff"/>
+  
+  <!-- Körper -->
+  <ellipse cx="512" cy="620" rx="140" ry="160" fill="#ffffff"/>
+  
+  <!-- Ärmchen links -->
+  <ellipse cx="380" cy="580" rx="50" ry="90" fill="#ffffff" transform="rotate(-20 380 580)"/>
+  
+  <!-- Ärmchen rechts -->
+  <ellipse cx="644" cy="580" rx="50" ry="90" fill="#ffffff" transform="rotate(20 644 580)"/>
+  
+  <!-- Gesicht: Augen -->
+  <circle cx="475" cy="385" r="18" fill="#667eea"/>
+  <circle cx="549" cy="385" r="18" fill="#667eea"/>
+  
+  <!-- Gesicht: Lächeln -->
+  <path d="M 460 430 Q 512 460 564 430" 
+        stroke="#667eea" 
+        stroke-width="12" 
+        stroke-linecap="round" 
+        fill="none"/>
+  
+  <!-- Herzchen (Liebe/Fürsorge Symbol) -->
+  <path d="M 512 720 L 490 698 C 450 660 420 632 420 600 C 420 574 440 554 466 554 C 482 554 497 562 512 575 C 527 562 542 554 558 554 C 584 554 604 574 604 600 C 604 632 574 660 534 698 Z" 
+        fill="url(#heartGradient)"/>
+  
+  <!-- Dekorative Sterne (Schutz & Sicherheit) -->
+  <path d="M 780 280 L 795 310 L 825 315 L 802 335 L 808 365 L 780 350 L 752 365 L 758 335 L 735 315 L 765 310 Z" 
+        fill="rgba(255,255,255,0.8)"/>
+  <path d="M 250 320 L 262 345 L 287 349 L 268 366 L 273 391 L 250 378 L 227 391 L 232 366 L 213 349 L 238 345 Z" 
+        fill="rgba(255,255,255,0.7)"/>
+  <path d="M 820 620 L 830 640 L 850 643 L 835 656 L 839 676 L 820 666 L 801 676 L 805 656 L 790 643 L 810 640 Z" 
+        fill="rgba(255,255,255,0.6)"/>
+</svg>

@@ -1,12 +1,12 @@
 {
-  "name": "Babysitter",
-  "short_name": "Babysitter",
-  "description": "Babysitter",
-  "lang": "en-US",
+  "name": "SitterSafe",
+  "short_name": "SitterSafe",
+  "description": "Professionelle Babysitter-App für sichere Kinderbetreuung",
+  "lang": "de-DE",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#00e1ff",
-  "theme_color": "#00e1ff",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
   "icons": [
     {
       "src": "/icons/128x128.png",
