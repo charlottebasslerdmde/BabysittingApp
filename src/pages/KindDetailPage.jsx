@@ -6,7 +6,7 @@ import {
 } from 'framework7-react';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { compressImage, safeLocalStorageSet } from '../js/imageUtils';
+import { compressImage, compressBase64Image, safeLocalStorageSet } from '../js/imageUtils';
 
 const KindDetailPage = ({ f7route }) => {
   const kindId = f7route.params.id;
@@ -301,9 +301,12 @@ const KindDetailPage = ({ f7route }) => {
       // Stelle sicher, dass es ein data URL ist
       const finalImageData = imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}`;
       
+      // WICHTIG: Bild nochmal komprimieren für LocalStorage
+      const compressedImage = await compressBase64Image(finalImageData, 300, 300, 0.5);
+      
       const updatedKind = {
         ...kind,
-        basis: { ...kind.basis, foto: finalImageData }
+        basis: { ...kind.basis, foto: compressedImage }
       };
       
       persistChanges(updatedKind);
@@ -331,16 +334,19 @@ const KindDetailPage = ({ f7route }) => {
       
       if (error.message?.includes('permission')) {
         errorMsg = 'Zugriff auf Galerie wurde verweigert. Bitte Berechtigungen in den Einstellungen prüfen.';
-      } else if (error.message?.includes('No camera')) {
-        errorMsg = 'Keine Kamera verfügbar';
+      } else if (error.message?.includes('No camera') || error.message?.includes('not available')) {
+        errorMsg = '📱 Kamera nicht verfügbar.\n\nIm Simulator bitte "Galerie" nutzen.';
       } else if (error.message?.includes('Kein Bild')) {
         errorMsg = 'Kein Bild ausgewählt oder Fehler beim Laden';
+      } else if (source === CameraSource.Camera) {
+        // Fallback für Simulator: Biete Galerie an
+        errorMsg = '📱 Kamera im Simulator nicht verfügbar.\n\nBitte "Galerie" wählen.';
       }
       
       f7.toast.show({ 
         text: errorMsg, 
         position: 'center', 
-        closeTimeout: 2500 
+        closeTimeout: 3000 
       });
     }
   };
@@ -448,7 +454,7 @@ const KindDetailPage = ({ f7route }) => {
   const RenderMedicationSection = () => {
     const meds = kind.sicherheit?.medikamente || [];
     return (
-      <>
+      <div>
         <BlockTitle style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
           <span>Medikamente & Dosierung</span>
           <Link onClick={openAddMedication} style={{fontSize: '14px'}}>+ Hinzufügen</Link>
@@ -474,7 +480,7 @@ const KindDetailPage = ({ f7route }) => {
             ))
           )}
         </List>
-      </>
+      </div>
     );
   };
 
@@ -541,7 +547,7 @@ const KindDetailPage = ({ f7route }) => {
       <div style={{height: '10px'}} />
 
       {activeTab === 'basis' && (
-        <>
+        <div>
           {/* Profilfoto Card */}
           <Card style={{
             margin: '16px', 
@@ -623,11 +629,11 @@ const KindDetailPage = ({ f7route }) => {
               Profil löschen
             </Button>
           </Block>
-        </>
+        </div>
       )}
 
       {activeTab === 'sicherheit' && (
-        <>
+        <div>
           <List insetMd strong dividersIos outlineIos>
             <RenderItem cluster="sicherheit" field="allergien" label="Allergien" type="textarea" />
             <RenderItem cluster="sicherheit" field="hausarzt" label="Hausarzt (Name/Tel)" />
@@ -635,7 +641,7 @@ const KindDetailPage = ({ f7route }) => {
             <RenderItem cluster="sicherheit" field="notfallKontakte" label="Notfall-Kontakte" type="textarea" />
           </List>
           <RenderMedicationSection />
-        </>
+        </div>
       )}
 
       {activeTab === 'routine' && (
@@ -647,7 +653,7 @@ const KindDetailPage = ({ f7route }) => {
       )}
 
       {activeTab === 'regeln' && (
-        <>
+        <div>
           <BlockTitle>Regeln & Erziehung</BlockTitle>
           <List insetMd strong dividersIos outlineIos>
             <RenderItem cluster="regeln" field="medienzeit" label="TV / Medienzeit" />
@@ -660,7 +666,7 @@ const KindDetailPage = ({ f7route }) => {
             <RenderItem cluster="psychologie" field="beruhigungsStrategie" label="Was beruhigt?" type="textarea" />
             <RenderItem cluster="psychologie" field="belohnungssystem" label="Belohnungssystem" />
           </List>
-        </>
+        </div>
       )}
 
       {/* EDIT SHEET */}
@@ -685,7 +691,7 @@ const KindDetailPage = ({ f7route }) => {
           <Block style={{padding: '24px 16px 60px'}}>
             <List noHairlinesMd>
               {editSheet.type === 'medication' ? (
-                <>
+                <div>
                   <ListInput
                     label="Name" type="text" placeholder="z.B. Hustensaft"
                     value={editSheet.medFormData?.name || ''}
@@ -712,7 +718,7 @@ const KindDetailPage = ({ f7route }) => {
                     onInput={(e) => updateMedFormData('info', e.target.value)}
                     outline floatingLabel resizable
                   />
-                </>
+                </div>
               ) : (
                 <ListInput
                   label={editSheet.label}

@@ -70,7 +70,7 @@ const KinderPage = () => {
         f7.preloader.show();
         
         // Komprimiere das Bild
-        const compressedBase64 = await compressImage(file, 400, 400, 0.7);
+        const compressedBase64 = await compressImage(file, 300, 300, 0.5);
         
         setTempPhoto(compressedBase64);
         
@@ -223,8 +223,7 @@ const KinderPage = () => {
                {/* Versteckter File Input + Custom Button */}
                <input 
                   type="file" 
-                  accept="image/*" 
-                  capture="user" // Zwingt Mobile Devices zur Kamera-Option (Spezifikation 2.D)
+                  accept="image/*"
                   ref={fileInputRef} 
                   style={{display: 'none'}} 
                   onChange={handlePhotoUpload}

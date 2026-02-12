@@ -21,6 +21,7 @@ const LoginPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Prüfe beim Laden der Seite, ob bereits ein User eingeloggt ist
   useEffect(() => {
@@ -192,13 +193,29 @@ const LoginPage = () => {
             </ListInput>
             <ListInput
               label={t('login_password')}
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               placeholder={t('login_password_placeholder')}
               value={password}
               onInput={(e) => setPassword(e.target.value)}
-              clearButton
             >
               <Icon slot="media" f7="lock_fill" color="orange" />
+              <div 
+                slot="content-end" 
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  cursor: 'pointer',
+                  padding: '8px',
+                  marginRight: '-8px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+              >
+                <Icon 
+                  f7={showPassword ? 'eye_slash_fill' : 'eye_fill'} 
+                  color={showPassword ? 'gray' : 'blue'}
+                  size="20px"
+                />
+              </div>
             </ListInput>
           </List>
 

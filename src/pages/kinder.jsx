@@ -6,7 +6,7 @@ import {
 } from 'framework7-react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useTranslation } from '../js/i18n';
-import { compressImage, safeLocalStorageSet } from '../js/imageUtils';
+import { compressImage, compressBase64Image, safeLocalStorageSet } from '../js/imageUtils';
 
 const KinderPage = () => {
   // i18n Hook
@@ -51,27 +51,8 @@ const KinderPage = () => {
     }
   };
 
-  // Speichern bei Änderungen (Reaktivität) mit Error Handling
-  useEffect(() => {
-    if (kinder.length === 0) return; // Nicht speichern wenn leer (beim initialen Laden)
-    
-    const result = safeLocalStorageSet('sitterSafe_kinder', kinder);
-    
-    if (!result.success) {
-      f7.dialog.alert(
-        `<div style="text-align: center;">
-          <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
-          <p><b>Speicher voll!</b></p>
-          <p>${result.message}</p>
-          <p style="font-size: 13px; color: #666; margin-top: 10px;">
-            💡 Tipp: Fotos werden komprimiert gespeichert. Falls das Problem weiterhin besteht,
-            versuche Fotos aus älteren Profilen zu entfernen.
-          </p>
-        </div>`,
-        'Fehler beim Speichern'
-      );
-    }
-  }, [kinder]);
+  // Speichern erfolgt jetzt direkt in addKind/deleteKind, 
+  // nicht mehr automatisch per useEffect um Race Conditions zu vermeiden
 
   const openAddSheet = () => {
     setNewKindName('');
@@ -136,11 +117,14 @@ const KinderPage = () => {
       // Stelle sicher, dass es ein data URL ist
       const finalImageData = imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}`;
       
-      setTempPhoto(finalImageData);
+      // WICHTIG: Bild nochmal komprimieren für LocalStorage
+      const compressedImage = await compressBase64Image(finalImageData, 300, 300, 0.5);
+      
+      setTempPhoto(compressedImage);
       
       f7.preloader.hide();
       f7.toast.show({ 
-        text: '✓ Foto aufgenommen', 
+        text: '✓ Foto komprimiert und bereit', 
         closeTimeout: 1500, 
         position: 'center',
         cssClass: 'toast-success'
@@ -160,13 +144,16 @@ const KinderPage = () => {
       
       if (error.message?.includes('permission')) {
         errorMsg = 'Zugriff auf Galerie wurde verweigert. Bitte Berechtigungen prüfen.';
-      } else if (error.message?.includes('No camera')) {
-        errorMsg = 'Keine Kamera verfügbar';
+      } else if (error.message?.includes('No camera') || error.message?.includes('not available')) {
+        errorMsg = '📱 Kamera nicht verfügbar.\n\nIm Simulator bitte "Galerie" nutzen.';
+      } else if (source === CameraSource.Camera) {
+        // Fallback für Simulator: Biete Galerie an
+        errorMsg = '📱 Kamera im Simulator nicht verfügbar.\n\nBitte "Galerie" wählen.';
       }
       
       f7.toast.show({ 
         text: errorMsg, 
-        closeTimeout: 2500, 
+        closeTimeout: 3000, 
         position: 'center' 
       });
     }
@@ -213,7 +200,28 @@ const KinderPage = () => {
       logs: [] // Für 2.B: Live-Aktivitäts-Tracker
     };
 
-    setKinder([...kinder, newKind]);
+    const updatedKinder = [...kinder, newKind];
+    
+    // WICHTIG: Direkt speichern BEVOR State Update, um Race Conditions zu vermeiden
+    const result = safeLocalStorageSet('sitterSafe_kinder', updatedKinder);
+    
+    if (!result.success) {
+      f7.dialog.alert(
+        `<div style="text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
+          <p><b>Speicher voll!</b></p>
+          <p>${result.message}</p>
+          <p style="font-size: 13px; color: #666; margin-top: 10px;">
+            💡 Tipp: Versuche ein Foto mit geringerer Auflösung oder entferne Fotos aus anderen Profilen.
+          </p>
+        </div>`,
+        'Fehler beim Speichern'
+      );
+      return; // Abbruch wenn Speichern fehlschlägt
+    }
+    
+    // State Update erst nach erfolgreichem Speichern
+    setKinder(updatedKinder);
     setSheetOpened(false);
     f7.toast.show({ text: t('kinder_created_success'), icon: '<i class="f7-icons">checkmark_alt</i>', closeTimeout: 2000 });
     
@@ -229,6 +237,10 @@ const KinderPage = () => {
   const deleteKind = (id) => {
     f7.dialog.confirm(t('kinder_delete_confirm'), t('kinder_delete_title'), () => {
       const updatedKinder = kinder.filter(k => k.id !== id);
+      
+      // Direkt in localStorage speichern
+      localStorage.setItem('sitterSafe_kinder', JSON.stringify(updatedKinder));
+      
       setKinder(updatedKinder);
       
       // Custom Event dispatchen

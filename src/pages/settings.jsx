@@ -17,7 +17,7 @@ import {
   Sheet
 } from 'framework7-react';
 import { supabase } from '../js/supabase';
-import { logout } from '../js/authGuard';
+import { logout, checkAuth } from '../js/authGuard';
 import { useTranslation, setLanguage as setI18nLanguage, getLanguage } from '../js/i18n';
 import store from '../js/store';
 import { compressImage } from '../js/imageUtils';
@@ -42,6 +42,7 @@ const SettingsPage = () => {
   const [lastBackupDate, setLastBackupDate] = useState('Nie');
   const [profileImage, setProfileImage] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('de');
+  const [currentUser, setCurrentUser] = useState(null);
   
   // Statistiken
   const [stats, setStats] = useState({
@@ -52,8 +53,87 @@ const SettingsPage = () => {
     deviceInfo: ''
   });
 
+  // --- HELPER FUNCTIONS ---
+  
+  // Lädt Benutzerprofil aus Supabase
+  const loadUserProfile = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('babysitter_name, profile_image')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        // Profil existiert noch nicht, das ist ok bei neuen Benutzern
+        if (error.code === 'PGRST116') {
+          console.log('Kein Profil gefunden, wird beim ersten Speichern erstellt');
+          return;
+        }
+        throw error;
+      }
+      
+      if (data) {
+        if (data.babysitter_name) {
+          setUserName(data.babysitter_name);
+          // Auch in localStorage für Offline-Verfügbarkeit
+          localStorage.setItem('sitterSafe_userName', data.babysitter_name);
+        }
+        if (data.profile_image) {
+          setProfileImage(data.profile_image);
+          localStorage.setItem('sitterSafe_profileImage', data.profile_image);
+        }
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden des Profils:', error);
+      // Fallback auf localStorage
+      const storedName = localStorage.getItem('sitterSafe_userName');
+      const storedImage = localStorage.getItem('sitterSafe_profileImage');
+      if (storedName) setUserName(storedName);
+      if (storedImage) setProfileImage(storedImage);
+    }
+  };
+  
+  // Speichert Benutzerprofil in Supabase
+  const saveUserProfile = async (userId, updates) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          ...updates
+        });
+      
+      if (error) throw error;
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Fehler beim Speichern des Profils:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   // --- INIT (Laden beim Start) ---
   useEffect(() => {
+    // Authentifizierung prüfen und Profil laden
+    const initializeSettings = async () => {
+      const { isAuthenticated, user } = await checkAuth();
+      
+      if (isAuthenticated && user) {
+        setCurrentUser(user);
+        // Profil aus Supabase laden
+        await loadUserProfile(user.id);
+      } else {
+        // Fallback auf localStorage wenn nicht eingeloggt
+        const storedName = localStorage.getItem('sitterSafe_userName');
+        if (storedName) setUserName(storedName);
+        const storedImage = localStorage.getItem('sitterSafe_profileImage');
+        if (storedImage) setProfileImage(storedImage);
+      }
+    };
+    
+    initializeSettings();
+    
     // 1. Dark Mode
     const storedDark = localStorage.getItem('sitterSafe_darkMode');
     if (storedDark) {
@@ -84,9 +164,7 @@ const SettingsPage = () => {
     const storedReminder = localStorage.getItem('sitterSafe_reminderInterval');
     if (storedReminder) setReminderInterval(storedReminder);
 
-    // 7. Benutzername
-    const storedName = localStorage.getItem('sitterSafe_userName');
-    if (storedName) setUserName(storedName);
+    // 7. Benutzername & Profilbild werden oben in initializeSettings() geladen
 
     // 8. Theme-Farbe
     const storedTheme = localStorage.getItem('sitterSafe_themeColor');
@@ -108,9 +186,7 @@ const SettingsPage = () => {
     const storedBackupDate = localStorage.getItem('sitterSafe_lastBackup');
     if (storedBackupDate) setLastBackupDate(storedBackupDate);
 
-    // 13. Profilbild
-    const storedImage = localStorage.getItem('sitterSafe_profileImage');
-    if (storedImage) setProfileImage(storedImage);
+    // 13. Profilbild wird oben in initializeSettings() geladen
 
     // 14. Sprache
     const storedLanguage = getLanguage();
@@ -209,10 +285,18 @@ const SettingsPage = () => {
     localStorage.setItem('sitterSafe_reminderInterval', val);
   };
 
-  const saveUserName = (e) => {
+  const saveUserName = async (e) => {
     const val = e.target.value;
     setUserName(val);
     localStorage.setItem('sitterSafe_userName', val);
+    
+    // In Supabase speichern wenn eingeloggt
+    if (currentUser) {
+      const result = await saveUserProfile(currentUser.id, { babysitter_name: val });
+      if (!result.success) {
+        console.error('Fehler beim Speichern in Supabase:', result.error);
+      }
+    }
   };
 
   const exportData = () => {
@@ -408,10 +492,18 @@ const SettingsPage = () => {
         f7.preloader.show();
         
         // Komprimiere das Bild
-        const compressedBase64 = await compressImage(file, 300, 300, 0.7);
+        const compressedBase64 = await compressImage(file, 300, 300, 0.5);
         
         setProfileImage(compressedBase64);
         localStorage.setItem('sitterSafe_profileImage', compressedBase64);
+        
+        // In Supabase speichern wenn eingeloggt
+        if (currentUser) {
+          const result = await saveUserProfile(currentUser.id, { profile_image: compressedBase64 });
+          if (!result.success) {
+            console.error('Fehler beim Speichern in Supabase:', result.error);
+          }
+        }
         
         f7.preloader.hide();
         f7.toast.show({

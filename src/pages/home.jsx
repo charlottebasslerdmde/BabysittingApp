@@ -851,7 +851,7 @@ const HomePage = () => {
 
   return (
     <Page name="home">
-      <Navbar large>
+      <Navbar>
         <NavLeft>
           <Link iconIos="f7:gear_alt_fill" iconMd="material:settings" href="/settings/" />
         </NavLeft>
@@ -1100,7 +1100,6 @@ const HomePage = () => {
                 <input
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   onChange={uploadImage}
                   style={{ display: 'none' }}
                   id="camera-input"
@@ -1119,6 +1118,15 @@ const HomePage = () => {
                   <Icon f7="camera_fill" style={{marginRight: '8px'}} />
                   Foto aufnehmen
                 </Button>
+                <p style={{
+                  fontSize: '12px',
+                  color: 'rgba(255,255,255,0.9)',
+                  marginTop: '12px',
+                  marginBottom: '0',
+                  textAlign: 'center'
+                }}>
+                  💡 Im Browser/Simulator: Foto aus Galerie/Dateien auswählen
+                </p>
               </CardContent>
             </Card>
           </Block>

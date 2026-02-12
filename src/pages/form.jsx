@@ -82,15 +82,38 @@ const FormPage = ({ f7router }) => {
     };
 
     // 3. In Supabase (Cloud) speichern
-    const { error } = await supabase
-      .from('kinder')
-      .insert([{ json_data: newKind }]);
+    // Prüfe ob User eingeloggt ist
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      // User ist eingeloggt -> In Cloud speichern
+      const { error } = await supabase
+        .from('children')  // ✅ Richtiger Tabellenname
+        .insert([{ 
+          id: newKind.id,
+          user_id: user.id,  // ✅ Erforderlich für RLS Policy
+          data: newKind,
+          avatar_url: newKind.basis.foto || null
+        }]);
 
-    if (error) {
-      console.error('Supabase Fehler:', error);
-      f7.dialog.alert('Fehler beim Speichern in der Cloud. Daten werden nur lokal abgelegt.');
+      if (error) {
+        console.error('Supabase Fehler:', error);
+        f7.dialog.alert(
+          `<b>Cloud-Backup fehlgeschlagen</b><br><br>` +
+          `Fehler: ${error.message}<br><br>` +
+          `<small>Die Daten werden nur lokal gespeichert.</small>`,
+          'Warnung'
+        );
+      } else {
+        f7.toast.show({ 
+          text: '✓ In Cloud gespeichert', 
+          icon: '<i class="f7-icons">checkmark_alt</i>', 
+          closeTimeout: 2000 
+        });
+      }
     } else {
-      f7.toast.show({ text: 'Kind erfolgreich angelegt', icon: '<i class="f7-icons">checkmark_alt</i>', closeTimeout: 2000 });
+      // Nicht eingeloggt -> Nur lokale Warnung
+      console.log('Nicht eingeloggt, speichere nur lokal');
     }
 
     // 4. Lokal speichern (Update LocalStorage Cache) mit Error Handling
