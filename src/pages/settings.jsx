@@ -67,7 +67,6 @@ const SettingsPage = () => {
       if (error) {
         // Profil existiert noch nicht, das ist ok bei neuen Benutzern
         if (error.code === 'PGRST116') {
-          console.log('Kein Profil gefunden, wird beim ersten Speichern erstellt');
           return;
         }
         throw error;
@@ -684,7 +683,6 @@ const SettingsPage = () => {
               });
             } catch (cloudError) {
               // Falls Cloud-Speicherung fehlschlägt, ist das okay - lokal ist gespeichert
-              console.log('Cloud-Feedback failed:', cloudError);
               f7.toast.show({
                 text: '✅ Feedback gespeichert (lokal)', 
                 closeTimeout: 2500

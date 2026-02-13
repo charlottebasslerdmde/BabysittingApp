@@ -188,7 +188,6 @@ const HomePage = () => {
   // Custom Event Listener für Kinder-Updates (von kinder.jsx)
   useEffect(() => {
     const handleKinderUpdate = (event) => {
-      console.log('Kinder Update Event:', event.detail);
       loadKinderData(); // Kinder-Daten neu laden
       
       // Wenn ein Kind gelöscht wurde, Event-Log neu laden
@@ -357,18 +356,20 @@ const HomePage = () => {
             const existing = eventMap.get(mapKey);
             if (!existing.kindIds.includes(event.child_id)) {
               existing.kindIds.push(event.child_id);
+              existing.supabaseIds.push(event.id); // Supabase-ID zur Gruppe hinzufügen
             }
           } else {
             // Erstelle neue Gruppe
             eventMap.set(mapKey, {
-              id: event.id,
+              id: event.details?.localEventId || Date.now() + Math.random(), // Lokale ID aus Details oder generieren
               time: timeKey,
               activity: event.details?.activityText || event.event_type,
               icon: event.icon || 'circle',
               color: event.color || 'blue',
               details: event.details || {},
               kindIds: event.child_id ? [event.child_id] : [],
-              mood: event.mood
+              mood: event.mood,
+              supabaseIds: [event.id] // Supabase-IDs speichern
             });
           }
         });
@@ -537,15 +538,17 @@ const HomePage = () => {
     
     if (editingEventId) {
       // Bearbeitungsmodus: Bestehenden Eintrag aktualisieren
+      const existingEvent = eventLog.find(e => e.id === editingEventId);
       const updatedEvent = {
         id: editingEventId,
-        time: eventLog.find(e => e.id === editingEventId)?.time || timeString, // Zeit beibehalten
+        time: existingEvent?.time || timeString, // Zeit beibehalten
         activity: activityText,
         icon: iconMap[type],
         color: colorMap[type],
         details: { ...details, activityText },
         kindIds: selectedKinder, // Array von Kind-IDs
-        mood
+        mood,
+        supabaseIds: existingEvent?.supabaseIds // Supabase-IDs beibehalten
       };
       
       const updatedLog = eventLog.map(e => e.id === editingEventId ? updatedEvent : e);
@@ -574,7 +577,7 @@ const HomePage = () => {
     // In Supabase speichern (Background) - Multi-Kind-Support
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      if (session?.user && !editingEventId) {
         // Für jedes ausgewählte Kind einen Event erstellen
         const eventInserts = selectedKinder.map(childId => ({
           user_id: session.user.id,
@@ -582,14 +585,15 @@ const HomePage = () => {
           event_type: type,
           event_time: now.toISOString(),
           mood: mood,
-          details: { ...details, activityText, allChildIds: selectedKinder },
+          details: { ...details, activityText, allChildIds: selectedKinder, localEventId: Date.now() },
           icon: iconMap[type],
           color: colorMap[type]
         }));
         
-        const { error } = await supabase
+        const { data: insertedData, error } = await supabase
           .from('events')
-          .insert(eventInserts);
+          .insert(eventInserts)
+          .select('id');
 
         if (error) {
           console.error('Error saving event to Supabase:', error);
@@ -598,6 +602,22 @@ const HomePage = () => {
             console.warn('⚠️ Supabase-Tabellen nicht gefunden. Führe supabase-migration.sql aus!');
           }
           // Event bleibt trotzdem in localStorage als Fallback
+        } else if (insertedData && insertedData.length > 0) {
+          // Supabase-IDs im Event speichern
+          const supabaseIds = insertedData.map(item => item.id);
+          const updatedLog = eventLog.map(e => {
+            if (e.id === Date.now()) { // Das gerade erstellte Event
+              return { ...e, supabaseIds };
+            }
+            return e;
+          });
+          // Bei neuen Events: ID an erster Stelle, daher direkt zugreifen
+          if (eventLog[0]?.id === Date.now()) {
+            const updatedFirstEvent = { ...eventLog[0], supabaseIds };
+            const finalLog = [updatedFirstEvent, ...eventLog.slice(1)];
+            setEventLog(finalLog);
+            safeLocalStorageSet('sitterSafe_eventLog', finalLog);
+          }
         }
       }
     } catch (error) {
@@ -627,21 +647,51 @@ const HomePage = () => {
     // Aus Supabase löschen (Background)
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user && event.kindIds) {
-        // Lösche alle Supabase-Einträge für dieses Event (kann mehrere sein bei Multi-Kind)
-        for (const kindId of event.kindIds) {
-          const { error } = await supabase
-            .from('events')
-            .delete()
-            .eq('user_id', session.user.id)
-            .eq('child_id', kindId)
-            .eq('event_type', event.icon === 'mouth_fill' ? 'essen' : 
-                               event.icon === 'moon_zzz_fill' ? 'schlaf' : 
-                               event.icon === 'drop_fill' ? 'windel' : 'spiel')
-            .gte('event_time', new Date().toISOString().split('T')[0] + 'T00:00:00');
+      if (session?.user) {
+        // METHODE 1: Wenn Supabase-IDs vorhanden sind, nutze diese (genaueste Methode)
+        if (event.supabaseIds && event.supabaseIds.length > 0) {
+          for (const supabaseId of event.supabaseIds) {
+            const { error } = await supabase
+              .from('events')
+              .delete()
+              .eq('id', supabaseId);
+            
+            if (error && error.code !== 'PGRST116' && error.code !== '42P01') {
+              console.warn('Fehler beim Löschen aus Supabase (ID-basiert):', error);
+            }
+          }
+        } 
+        // METHODE 2: Fallback - Lösche anhand von Zeit, Kindern und Typ
+        else if (event.kindIds && event.kindIds.length > 0) {
+          // Typ aus Icon ermitteln
+          const eventType = event.icon === 'mouth_fill' ? 'essen' : 
+                           event.icon === 'moon_zzz_fill' ? 'schlaf' : 
+                           event.icon === 'drop_fill' ? 'windel' : 'spiel';
           
-          if (error && error.code !== 'PGRST116' && error.code !== '42P01') {
-            console.warn('Fehler beim Löschen aus Supabase:', error);
+          // Zeit-Fenster: ±2 Minuten um die Event-Zeit
+          const timeParts = event.time.split(':');
+          if (timeParts.length === 2) {
+            const hours = parseInt(timeParts[0]);
+            const minutes = parseInt(timeParts[1]);
+            const today = new Date().toISOString().split('T')[0];
+            const eventTime = new Date(`${today}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+            const beforeTime = new Date(eventTime.getTime() - 2 * 60000); // -2 Minuten
+            const afterTime = new Date(eventTime.getTime() + 2 * 60000); // +2 Minuten
+            
+            for (const kindId of event.kindIds) {
+              const { error } = await supabase
+                .from('events')
+                .delete()
+                .eq('user_id', session.user.id)
+                .eq('child_id', kindId)
+                .eq('event_type', eventType)
+                .gte('event_time', beforeTime.toISOString())
+                .lte('event_time', afterTime.toISOString());
+              
+              if (error && error.code !== 'PGRST116' && error.code !== '42P01') {
+                console.warn('Fehler beim Löschen aus Supabase (Fallback):', error);
+              }
+            }
           }
         }
       }
@@ -700,7 +750,6 @@ const HomePage = () => {
       }
     } catch (e) { 
       if (e.name !== 'AbortError') {
-        console.log('Share-Fehler:', e);
         f7.toast.show({ text: t('tracker_share_failed'), closeTimeout: 2000 });
       }
     }

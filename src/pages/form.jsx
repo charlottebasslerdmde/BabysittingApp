@@ -111,9 +111,6 @@ const FormPage = ({ f7router }) => {
           closeTimeout: 2000 
         });
       }
-    } else {
-      // Nicht eingeloggt -> Nur lokale Warnung
-      console.log('Nicht eingeloggt, speichere nur lokal');
     }
 
     // 4. Lokal speichern (Update LocalStorage Cache) mit Error Handling

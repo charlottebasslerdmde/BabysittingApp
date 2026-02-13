@@ -35,11 +35,7 @@ const LoginPage = () => {
       // User ist bereits eingeloggt -> Kinder synchronisieren
       try {
         const userId = session.user.id;
-        const syncResult = await syncChildrenWithSupabase(userId);
-        
-        if (syncResult.success) {
-          console.log('✅ Kinder erfolgreich synchronisiert:', syncResult.data.length, 'Kinder');
-        }
+        await syncChildrenWithSupabase(userId);
       } catch (error) {
         console.error('Fehler bei Kinder-Sync:', error);
       }
@@ -148,7 +144,6 @@ const LoginPage = () => {
 
     if (result.error) {
       console.error('Login error:', result.error);
-      console.log('Full error object:', JSON.stringify(result.error, null, 2));
       
       // Spezielle Fehlerbehandlung
       if (result.error.code === 'email_provider_disabled' || 
@@ -201,9 +196,7 @@ const LoginPage = () => {
           const userId = result.data.user.id;
           const syncResult = await syncChildrenWithSupabase(userId);
           
-          if (syncResult.success) {
-            console.log('✅ Kinder erfolgreich synchronisiert:', syncResult.data.length, 'Kinder');
-          } else {
+          if (!syncResult.success) {
             console.warn('⚠️ Kinder-Sync fehlgeschlagen:', syncResult.error);
             // Trotzdem weitermachen - lokale Daten sind vorhanden
           }

@@ -86,15 +86,10 @@ const KindDetailPage = ({ f7route }) => {
 
   // --- 2. PERSISTENZ MIT ERROR HANDLING ---
   const persistChanges = async (updatedKind) => {
-    console.log('💾 persistChanges aufgerufen für:', updatedKind.basis.name);
-    console.log('📷 Hat Foto:', !!updatedKind.basis?.foto, 'Länge:', updatedKind.basis?.foto?.length);
-    
     setKind(updatedKind);
     const storedKinder = JSON.parse(localStorage.getItem('sitterSafe_kinder') || '[]');
-    console.log('📂 Aktuelle Kinder in localStorage:', storedKinder.length);
     
     const updatedList = storedKinder.map(k => k.id === kindId ? updatedKind : k);
-    console.log('📝 Aktualisierte Liste erstellt, speichere...');
     
     const result = safeLocalStorageSet('sitterSafe_kinder', updatedList);
     
@@ -115,27 +110,17 @@ const KindDetailPage = ({ f7route }) => {
       // Rollback
       setKind(kind);
     } else {
-      console.log('✅ Erfolgreich in localStorage gespeichert');
-      
-      // Verify: Lese zurück was gespeichert wurde
-      const verify = JSON.parse(localStorage.getItem('sitterSafe_kinder') || '[]');
-      const savedKind = verify.find(k => k.id === kindId);
-      console.log('Verifikation - Foto gespeichert:', !!savedKind?.basis?.foto, 'Länge:', savedKind?.basis?.foto?.length);
-      
       // Event dispatchen, damit andere Seiten (z.B. Kinder-Liste) aktualisiert werden
       window.dispatchEvent(new CustomEvent('kinderUpdated', { 
         detail: { action: 'updated', kindId: kindId, kind: updatedKind } 
       }));
-      console.log('📤 kinderUpdated Event dispatched');
       
       // Zu Supabase synchronisieren
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user?.id) {
           const syncResult = await saveChildToSupabase(updatedKind, session.user.id);
-          if (syncResult.success) {
-            console.log('Kind erfolgreich zu Supabase synchronisiert');
-          } else {
+          if (!syncResult.success) {
             console.warn('Supabase-Sync fehlgeschlagen:', syncResult.error);
           }
         }
@@ -266,9 +251,7 @@ const KindDetailPage = ({ f7route }) => {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user?.id) {
             const deleteResult = await deleteChildFromSupabase(kindId, session.user.id);
-            if (deleteResult.success) {
-              console.log('Kind erfolgreich aus Supabase gelöscht');
-            } else {
+            if (!deleteResult.success) {
               console.warn('Supabase-Löschung fehlgeschlagen:', deleteResult.error);
             }
           }
@@ -348,23 +331,16 @@ const KindDetailPage = ({ f7route }) => {
         throw new Error('Kein Bild erhalten');
       }
       
-      console.log('📸 Bild erhalten, Größe:', imageData.length, 'Zeichen');
-      
       // Stelle sicher, dass es ein data URL ist
       const finalImageData = imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}`;
       
-      console.log('🔄 Starte Komprimierung...');
       // WICHTIG: Bild nochmal komprimieren für LocalStorage
       const compressedImage = await compressBase64Image(finalImageData, 300, 300, 0.5);
-      
-      console.log('✅ Komprimiert:', compressedImage.length, 'Zeichen', '(', Math.round(compressedImage.length / finalImageData.length * 100), '% der Originalgröße)');
       
       const updatedKind = {
         ...kind,
         basis: { ...kind.basis, foto: compressedImage }
       };
-      
-      console.log('💾 Rufe persistChanges auf...');
       await persistChanges(updatedKind);
       
       f7.preloader.hide();

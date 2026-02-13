@@ -29,8 +29,6 @@ const MyApp = () => {
   useEffect(() => {
     // Listen for auth changes (email confirmation, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth event:', event);
-      
       if (event === 'SIGNED_IN' && session) {
         // User wurde eingeloggt (z.B. nach Email-Bestätigung)
         setTimeout(() => {

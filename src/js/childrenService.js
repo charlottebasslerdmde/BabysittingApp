@@ -88,7 +88,6 @@ export async function saveChildToSupabase(kind, userId) {
       return { success: false, error: result.error.message };
     }
 
-    console.log('✅ Kind erfolgreich in Supabase gespeichert (Foto:', fotoBase64 ? 'vorhanden' : 'leer', ')');
     return { success: true };
   } catch (error) {
     console.error('Fehler beim Speichern des Kindes:', error);
@@ -104,6 +103,12 @@ export async function saveChildToSupabase(kind, userId) {
  */
 export async function deleteChildFromSupabase(childId, userId) {
   try {
+    // Zuerst alle Events dieses Kindes löschen
+    const eventsResult = await deleteChildEventsFromSupabase(childId, userId);
+    if (!eventsResult.success) {
+      console.warn('Warnung: Events konnten nicht gelöscht werden:', eventsResult.error);
+    }
+
     // Datenbankeintrag löschen (Foto ist in avatar_url als base64, wird automatisch gelöscht)
     const { error } = await supabase
       .from('children')
@@ -119,6 +124,32 @@ export async function deleteChildFromSupabase(childId, userId) {
     return { success: true };
   } catch (error) {
     console.error('Fehler beim Löschen des Kindes:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Löscht alle Events eines Kindes aus Supabase
+ * @param {string} childId - Die ID des Kindes
+ * @param {string} userId - Die ID des Benutzers
+ * @returns {Promise<object>} - Erfolgs-Status
+ */
+export async function deleteChildEventsFromSupabase(childId, userId) {
+  try {
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('child_id', childId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Fehler beim Löschen der Kind-Events:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Fehler beim Löschen der Kind-Events:', error);
     return { success: false, error: error.message };
   }
 }
@@ -230,20 +261,14 @@ export async function deleteChildPhoto(childId, userId) {
  */
 export async function syncChildrenWithSupabase(userId) {
   try {
-    console.log('🔄 syncChildrenWithSupabase gestartet');
-    
     // 1. Lade Kinder von Supabase
     const remoteResult = await loadChildrenFromSupabase(userId);
     if (!remoteResult.success) {
-      console.log('⚠️ Supabase-Laden fehlgeschlagen, verwende nur lokale Daten');
       return { success: false, error: remoteResult.error, data: [] };
     }
 
-    console.log('📥 Von Supabase geladen:', remoteResult.data.length, 'Kinder');
-
     // 2. Lade lokale Kinder
     const localKinder = JSON.parse(localStorage.getItem('sitterSafe_kinder') || '[]');
-    console.log('📂 Lokal vorhanden:', localKinder.length, 'Kinder');
 
     // 3. Merge-Strategie: Supabase ist führend, aber lokale Fotos bleiben erhalten!
     const mergedKinder = [];
@@ -255,7 +280,6 @@ export async function syncChildrenWithSupabase(userId) {
       
       // Wenn lokales Kind ein Foto hat, aber Remote nicht → Lokales Foto behalten
       if (localKind && localKind.basis?.foto && !remoteKind.basis?.foto) {
-        console.log('📷 Behalte lokales Foto für:', remoteKind.basis.name);
         mergedKinder.push({
           ...remoteKind,
           basis: {
@@ -281,11 +305,9 @@ export async function syncChildrenWithSupabase(userId) {
       if (!remoteIds.has(localKind.id)) {
         // Prüfe ob es kürzlich gelöscht wurde
         if (recentlyDeletedIds.has(localKind.id)) {
-          console.log('⏭️ Überspringe kürzlich gelöschtes Kind:', localKind.basis.name);
           continue;
         }
         
-        console.log('➕ Lokales Kind nicht in Supabase gefunden, füge hinzu:', localKind.basis.name);
         // Neues lokales Kind -> zu Supabase hochladen
         await saveChildToSupabase(localKind, userId);
         mergedKinder.push(localKind);
@@ -298,14 +320,11 @@ export async function syncChildrenWithSupabase(userId) {
       localStorage.setItem('sitterSafe_deleted_kids', JSON.stringify(cleanedDeletedKids));
     }
 
-    console.log('✅ Merge abgeschlossen:', mergedKinder.length, 'Kinder (mit lokalen Fotos erhalten)');
-
     // 4. Fotos sind bereits base64, kein Download nötig!
     // (Die avatar_url Spalte enthält direkt den base64-String)
 
     // 5. In localStorage speichern
     localStorage.setItem('sitterSafe_kinder', JSON.stringify(mergedKinder));
-    console.log('💾 Merged Kinder in localStorage gespeichert');
 
     return { success: true, data: mergedKinder };
   } catch (error) {
