@@ -366,7 +366,7 @@ const KindDetailPage = ({ f7route }) => {
       
       f7.preloader.hide();
       f7.toast.show({ 
-        text: 'Foto komprimiert und gespeichert ✓', 
+        text: 'Foto komprimiert und gespeichert', 
         icon: '<i class="f7-icons">checkmark_alt</i>', 
         position: 'center', 
         closeTimeout: 1500,

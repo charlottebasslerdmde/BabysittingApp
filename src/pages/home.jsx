@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Share } from '@capacitor/share';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '../js/supabase';
 import {
   Page,
@@ -30,7 +31,7 @@ import {
   f7 
 } from 'framework7-react';
 import { useTranslation } from '../js/i18n';
-import { safeLocalStorageSet } from '../js/imageUtils';
+import { safeLocalStorageSet, compressImage } from '../js/imageUtils';
 
 const HomePage = () => {
   // i18n Hook
@@ -587,35 +588,78 @@ const HomePage = () => {
     }
   };
 
-  // Foto-Upload mit Capacitor Camera
-  const uploadImage = async () => {
-    try {
-      // Zeige Action Sheet: Kamera oder Galerie wählen
-      const buttons = [
-        {
-          text: 'Kamera',
-          onClick: () => takePicture(CameraSource.Camera)
-        },
-        {
-          text: 'Galerie',
-          onClick: () => takePicture(CameraSource.Photos)
-        },
-        {
-          text: 'Abbrechen',
-          color: 'red'
+  // Foto-Upload - Web vs Native
+  const uploadImage = async (event) => {
+    // Wenn Event vom File Input kommt (Web/PWA)
+    if (event && event.target && event.target.files) {
+      const file = event.target.files[0];
+      if (file) {
+        try {
+          f7.preloader.show();
+          
+          // Bild komprimieren (600x600, 70% Qualität)
+          const compressedBase64 = await compressImage(file, 600, 600, 0.7);
+          await savePhoto(compressedBase64);
+          
+          f7.preloader.hide();
+          f7.toast.show({ 
+            text: 'Foto komprimiert und gespeichert', 
+            closeTimeout: 1500, 
+            position: 'center',
+            cssClass: 'toast-success'
+          });
+        } catch (error) {
+          f7.preloader.hide();
+          console.error('Fehler beim Laden des Fotos:', error);
+          f7.toast.show({ 
+            text: 'Fehler beim Laden des Fotos', 
+            closeTimeout: 2000, 
+            position: 'center' 
+          });
         }
-      ];
-      
-      f7.actions.create({
-        buttons: [buttons]
-      }).open();
-    } catch (error) {
-      console.error('Fehler beim Öffnen der Kamera:', error);
-      f7.toast.show({ 
-        text: 'Fehler beim Öffnen der Kamera', 
-        closeTimeout: 2000, 
-        position: 'center' 
-      });
+      }
+      return;
+    }
+    
+    // Wenn als Funktion aufgerufen (nicht als Event Handler)
+    // Native App: Zeige Action Sheet mit Kamera/Galerie
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const buttons = [
+          {
+            text: 'Kamera',
+            onClick: () => takePicture(CameraSource.Camera)
+          },
+          {
+            text: 'Galerie',
+            onClick: () => takePicture(CameraSource.Photos)
+          },
+          {
+            text: 'Abbrechen',
+            color: 'red'
+          }
+        ];
+        
+        f7.actions.create({
+          buttons: [buttons]
+        }).open();
+      } catch (error) {
+        console.error('Fehler beim Öffnen der Kamera:', error);
+        f7.toast.show({ 
+          text: 'Fehler beim Öffnen der Kamera', 
+          closeTimeout: 2000, 
+          position: 'center' 
+        });
+      }
+    }
+  };
+  
+  // Hilfsfunktion für Web/PWA: Öffne File Input
+  const openFileInput = () => {
+    if (Capacitor.isNativePlatform()) {
+      uploadImage(); // Native: Zeige Action Sheet
+    } else {
+      document.getElementById('camera-input').click(); // Web: Öffne File Dialog
     }
   };
 
@@ -643,6 +687,21 @@ const HomePage = () => {
       // Stelle sicher, dass es ein data URL ist
       const finalImageData = imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}`;
       
+      await savePhoto(finalImageData);
+      f7.preloader.hide();
+    } catch (error) {
+      f7.preloader.hide();
+      console.error('Fehler beim Aufnehmen des Fotos:', error);
+      f7.toast.show({ 
+        text: 'Fehler beim Aufnehmen des Fotos', 
+        closeTimeout: 2000, 
+        position: 'center' 
+      });
+    }
+  };
+  
+  const savePhoto = async (finalImageData) => {
+    try {
       // Lokale Vorschau setzen
       setImage(finalImageData);
 
@@ -663,7 +722,23 @@ const HomePage = () => {
 
         const updatedPhotos = [newPhoto, ...photos];
         setPhotos(updatedPhotos);
-        localStorage.setItem('sitterSafe_photos', JSON.stringify(updatedPhotos));
+        
+        const result = safeLocalStorageSet('sitterSafe_photos', updatedPhotos);
+        if (!result.success) {
+          f7.preloader.hide();
+          f7.dialog.alert(
+            `<div style="text-align: center;">
+              <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
+              <p><b>Speicher voll!</b></p>
+              <p>${result.message}</p>
+              <p style="font-size: 13px; color: #666; margin-top: 10px;">
+                💡 Tipp: Lösche ältere Fotos um Platz zu schaffen.
+              </p>
+            </div>`,
+            'Fehler beim Speichern'
+          );
+          return;
+        }
         
         f7.preloader.hide();
         f7.toast.show({ 
@@ -700,7 +775,23 @@ const HomePage = () => {
 
         const updatedPhotos = [newPhoto, ...photos];
         setPhotos(updatedPhotos);
-        localStorage.setItem('sitterSafe_photos', JSON.stringify(updatedPhotos));
+        
+        const result = safeLocalStorageSet('sitterSafe_photos', updatedPhotos);
+        if (!result.success) {
+          f7.preloader.hide();
+          f7.dialog.alert(
+            `<div style="text-align: center;">
+              <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
+              <p><b>Speicher voll!</b></p>
+              <p>${result.message}</p>
+              <p style="font-size: 13px; color: #666; margin-top: 10px;">
+                💡 Tipp: Lösche ältere Fotos um Platz zu schaffen.
+              </p>
+            </div>`,
+            'Fehler beim Speichern'
+          );
+          return;
+        }
         
         f7.preloader.hide();
         f7.toast.show({ 
@@ -727,7 +818,23 @@ const HomePage = () => {
 
       const updatedPhotos = [newPhoto, ...photos];
       setPhotos(updatedPhotos);
-      localStorage.setItem('sitterSafe_photos', JSON.stringify(updatedPhotos));
+      
+      const result = safeLocalStorageSet('sitterSafe_photos', updatedPhotos);
+      if (!result.success) {
+        f7.preloader.hide();
+        f7.dialog.alert(
+          `<div style="text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>
+            <p><b>Speicher voll!</b></p>
+            <p>${result.message}</p>
+            <p style="font-size: 13px; color: #666; margin-top: 10px;">
+              💡 Tipp: Lösche ältere Fotos um Platz zu schaffen.
+            </p>
+          </div>`,
+          'Fehler beim Speichern'
+        );
+        return;
+      }
 
       f7.preloader.hide();
       f7.toast.show({ 
@@ -773,7 +880,7 @@ const HomePage = () => {
       () => {
         const updatedPhotos = photos.filter(p => p.id !== photoId);
         setPhotos(updatedPhotos);
-        localStorage.setItem('sitterSafe_photos', JSON.stringify(updatedPhotos));
+        safeLocalStorageSet('sitterSafe_photos', updatedPhotos);
         f7.toast.show({ text: 'Foto gelöscht', closeTimeout: 1500 });
       }
     );
@@ -1108,7 +1215,7 @@ const HomePage = () => {
                   fill 
                   large 
                   round
-                  onClick={() => document.getElementById('camera-input').click()}
+                  onClick={openFileInput}
                   style={{
                     background: 'white',
                     color: '#667eea',
@@ -1118,15 +1225,17 @@ const HomePage = () => {
                   <Icon f7="camera_fill" style={{marginRight: '8px'}} />
                   Foto aufnehmen
                 </Button>
-                <p style={{
-                  fontSize: '12px',
-                  color: 'rgba(255,255,255,0.9)',
-                  marginTop: '12px',
-                  marginBottom: '0',
-                  textAlign: 'center'
-                }}>
-                  💡 Im Browser/Simulator: Foto aus Galerie/Dateien auswählen
-                </p>
+                {!Capacitor.isNativePlatform() && (
+                  <p style={{
+                    fontSize: '12px',
+                    color: 'rgba(255,255,255,0.9)',
+                    marginTop: '12px',
+                    marginBottom: '0',
+                    textAlign: 'center'
+                  }}>
+                    💡 Im Browser/Simulator: Foto aus Galerie/Dateien auswählen
+                  </p>
+                )}
               </CardContent>
             </Card>
           </Block>
