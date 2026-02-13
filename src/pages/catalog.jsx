@@ -76,7 +76,7 @@ const KinderPage = () => {
         
         f7.preloader.hide();
         f7.toast.show({ 
-          text: '✓ Foto komprimiert und bereit', 
+          text: 'Foto komprimiert und bereit', 
           closeTimeout: 1500, 
           position: 'center',
           cssClass: 'toast-success'
@@ -165,39 +165,41 @@ const KinderPage = () => {
       {/* Navbar gemäß iOS Design Guidelines */}
       <Navbar title={t('kinder_page_title')} />
 
-      {/* Leerer Zustand (Empty State) */}
-      {kinder.length === 0 && (
-        <Block className="text-align-center" style={{marginTop: '30vh', opacity: 0.6}}>
-          <Icon f7="person_3_fill" size="64px" color="gray"></Icon>
-          <p>{t('kinder_empty_state')}</p>
-          <Button fill round small onClick={openAddSheet} style={{maxWidth: '200px', margin: '0 auto'}}>
-            {t('kinder_create_first')}
-          </Button>
-        </Block>
-      )}
+      <PageContent>
+        {/* Leerer Zustand (Empty State) */}
+        {kinder.length === 0 && (
+          <Block className="text-align-center" style={{marginTop: '30vh', opacity: 0.6}}>
+            <Icon f7="person_3_fill" size="64px" color="gray"></Icon>
+            <p>{t('kinder_empty_state')}</p>
+            <Button fill round small onClick={openAddSheet} style={{maxWidth: '200px', margin: '0 auto'}}>
+              {t('kinder_create_first')}
+            </Button>
+          </Block>
+        )}
 
-      {/* Liste der Kinder mit Swipe-to-Delete */}
-      <List mediaList dividersIos outlineIos insetMd>
-        {kinder.map((kind) => (
-          <ListItem
-            key={kind.id}
-            link={`/kind/${kind.id}/`} // Routing zur Detailseite (muss in routes.js definiert sein)
-            title={kind.basis.name}
-            subtitle={kind.basis.rufname ? `"${kind.basis.rufname}"` : t('kinder_no_nickname')}
-            text={`${t('kinder_status')}: ${kind.sicherheit.allergien ? t('kinder_allergies_warning') : t('kinder_all_ok')}`}
-            swipeout
-          >
-            <div slot="media">
-              {renderAvatar(kind)}
-            </div>
-            <SwipeoutActions right>
-              <SwipeoutButton color="red" onClick={() => deleteKind(kind.id)}>
-                Löschen
-              </SwipeoutButton>
-            </SwipeoutActions>
-          </ListItem>
-        ))}
-      </List>
+        {/* Liste der Kinder mit Swipe-to-Delete */}
+        <List mediaList dividersIos outlineIos insetMd>
+          {kinder.map((kind) => (
+            <ListItem
+              key={kind.id}
+              link={`/kind/${kind.id}/`} // Routing zur Detailseite (muss in routes.js definiert sein)
+              title={kind.basis.name}
+              subtitle={kind.basis.rufname ? `"${kind.basis.rufname}"` : t('kinder_no_nickname')}
+              text={`${t('kinder_status')}: ${kind.sicherheit.allergien ? t('kinder_allergies_warning') : t('kinder_all_ok')}`}
+              swipeout
+            >
+              <div slot="media">
+                {renderAvatar(kind)}
+              </div>
+              <SwipeoutActions right>
+                <SwipeoutButton color="red" onClick={() => deleteKind(kind.id)}>
+                  Löschen
+                </SwipeoutButton>
+              </SwipeoutActions>
+            </ListItem>
+          ))}
+        </List>
+      </PageContent>
 
       {/* Floating Action Button (FAB) für schnelle Erfassung */}
       <Fab position="right-bottom" slot="fixed" color="blue" onClick={openAddSheet}>

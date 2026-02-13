@@ -1,4 +1,9 @@
-# SitterSafe - Babysitter App
+// NEU: Echtes Datei-Sharing
+const file = new File([text], `backup_${date}.json`, {type: 'application/json'});
+await navigator.share({
+  title: 'SitterSafe Backup',
+  files: [file]  // ✅ Teilt echte Datei
+});# SitterSafe - Babysitter App
 
 > 🛡️ **Sichere Kinderbetreuung leicht gemacht**
 

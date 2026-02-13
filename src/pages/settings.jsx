@@ -337,14 +337,48 @@ const SettingsPage = () => {
                 data[key] = localStorage[key];
               }
             }
-            const text = JSON.stringify(data, null, 2);
+            const jsonString = JSON.stringify(data, null, 2);
+            const fileName = `sitterSafe_backup_${new Date().toISOString().split('T')[0]}.json`;
+            
             try {
-              await navigator.share({
-                title: 'SitterSafe Backup',
-                text: text
-              });
+              // Prüfe ob Web Share API mit Dateien verfügbar ist
+              if (navigator.canShare && navigator.canShare({ files: [] })) {
+                const file = new File([jsonString], fileName, { type: 'application/json' });
+                await navigator.share({
+                  title: 'SitterSafe Backup',
+                  text: 'Mein SitterSafe Backup - Import über Einstellungen > Daten importieren',
+                  files: [file]
+                });
+                
+                // Backup-Datum speichern
+                const now = new Date().toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'});
+                localStorage.setItem('sitterSafe_lastBackup', now);
+                setLastBackupDate(now);
+                
+                f7.toast.show({text: '✅ Backup geteilt', closeTimeout: 2000, cssClass: 'toast-success'});
+              } else {
+                // Fallback: Download wenn Datei-Sharing nicht unterstützt wird
+                const blob = new Blob([jsonString], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                // Backup-Datum speichern
+                const now = new Date().toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'});
+                localStorage.setItem('sitterSafe_lastBackup', now);
+                setLastBackupDate(now);
+                
+                f7.toast.show({text: '⬇️ Datei heruntergeladen (Sharing nicht verfügbar)', closeTimeout: 2500});
+              }
             } catch (e) {
-              f7.toast.show({text: 'Teilen nicht verfügbar', closeTimeout: 2000});
+              // Wenn Teilen abgebrochen oder fehlgeschlagen
+              if (e.name !== 'AbortError') {
+                console.error('Share-Fehler:', e);
+                f7.toast.show({text: 'Teilen fehlgeschlagen', closeTimeout: 2000});
+              }
             }
           }
         },
@@ -874,6 +908,12 @@ const SettingsPage = () => {
                   width: '100%'
                 }}
               />
+              {currentUser && currentUser.email && (
+                <div style={{marginTop: '6px', fontSize: '13px', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '6px'}}>
+                  <Icon f7="envelope_fill" size="12px" />
+                  {currentUser.email}
+                </div>
+              )}
               <div style={{marginTop: '8px', fontSize: '14px', opacity: 0.9}}>
                 {translate('settings_babysitter_profile')}
               </div>

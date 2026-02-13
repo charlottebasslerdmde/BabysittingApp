@@ -13,6 +13,7 @@ import {
 } from 'framework7-react';
 import { supabase } from '../js/supabase';
 import { useTranslation } from '../js/i18n';
+import { syncChildrenWithSupabase } from '../js/childrenService';
 
 const LoginPage = () => {
   const { t } = useTranslation();
@@ -31,8 +32,61 @@ const LoginPage = () => {
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      // User ist bereits eingeloggt -> Weiterleitung zur Home-Seite
+      // User ist bereits eingeloggt -> Kinder synchronisieren
+      try {
+        const userId = session.user.id;
+        const syncResult = await syncChildrenWithSupabase(userId);
+        
+        if (syncResult.success) {
+          console.log('✅ Kinder erfolgreich synchronisiert:', syncResult.data.length, 'Kinder');
+        }
+      } catch (error) {
+        console.error('Fehler bei Kinder-Sync:', error);
+      }
+      
+      // Weiterleitung zur Home-Seite
       f7.views.main.router.navigate('/home/');
+    }
+  };
+
+  // Willkommensnachricht anzeigen
+  const showWelcomeMessage = async (user) => {
+    try {
+      // Versuche, den Namen aus dem Profil zu laden
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('babysitter_name')
+        .eq('id', user.id)
+        .single();
+      
+      let displayName = user.email;
+      
+      if (!error && data && data.babysitter_name) {
+        displayName = data.babysitter_name;
+      } else {
+        // Fallback: Name aus localStorage
+        const storedName = localStorage.getItem('sitterSafe_userName');
+        if (storedName) {
+          displayName = storedName;
+        }
+      }
+      
+      // Willkommensnachricht anzeigen
+      f7.toast.show({
+        text: `👋 Willkommen zurück, ${displayName}!`,
+        closeTimeout: 3000,
+        position: 'center',
+        cssClass: 'toast-success'
+      });
+    } catch (err) {
+      console.error('Fehler beim Laden des Profils für Willkommensnachricht:', err);
+      // Fallback: Einfache Willkommensnachricht mit E-Mail
+      f7.toast.show({
+        text: `👋 Willkommen zurück, ${user.email}!`,
+        closeTimeout: 3000,
+        position: 'center',
+        cssClass: 'toast-success'
+      });
     }
   };
 
@@ -139,7 +193,26 @@ const LoginPage = () => {
           t('login_signup_success_title')
         );
       } else {
-        // Erfolgreicher Login -> Weiterleitung
+        // Erfolgreicher Login -> Willkommensnachricht anzeigen
+        showWelcomeMessage(result.data.user);
+        
+        // WICHTIG: Kinder mit Supabase synchronisieren
+        try {
+          const userId = result.data.user.id;
+          const syncResult = await syncChildrenWithSupabase(userId);
+          
+          if (syncResult.success) {
+            console.log('✅ Kinder erfolgreich synchronisiert:', syncResult.data.length, 'Kinder');
+          } else {
+            console.warn('⚠️ Kinder-Sync fehlgeschlagen:', syncResult.error);
+            // Trotzdem weitermachen - lokale Daten sind vorhanden
+          }
+        } catch (error) {
+          console.error('Fehler bei Kinder-Sync:', error);
+          // Trotzdem weitermachen
+        }
+        
+        // Weiterleitung zur Home-Seite
         f7.views.main.router.navigate('/home/');
       }
     }
