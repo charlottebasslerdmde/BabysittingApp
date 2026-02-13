@@ -667,7 +667,7 @@ const HomePage = () => {
         
         f7.preloader.hide();
         f7.toast.show({ 
-          text: '✓ Foto lokal gespeichert', 
+          text: 'Foto lokal gespeichert', 
           icon: '<i class="f7-icons">checkmark_alt</i>',
           position: 'center', 
           closeTimeout: 2000,
@@ -704,7 +704,7 @@ const HomePage = () => {
         
         f7.preloader.hide();
         f7.toast.show({ 
-          text: '✓ Foto lokal gespeichert (Cloud-Upload fehlgeschlagen)', 
+          text: 'Foto lokal gespeichert (Cloud-Upload fehlgeschlagen)', 
           position: 'center', 
           closeTimeout: 2500
         });
@@ -731,7 +731,7 @@ const HomePage = () => {
 
       f7.preloader.hide();
       f7.toast.show({ 
-        text: '✓ Foto gespeichert und hochgeladen', 
+        text: 'Foto gespeichert und hochgeladen', 
         icon: '<i class="f7-icons">checkmark_alt</i>',
         position: 'center', 
         closeTimeout: 2000,

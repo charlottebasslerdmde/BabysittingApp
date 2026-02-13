@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS children (
   nachname TEXT,
   rufname TEXT,
   geburtsdatum DATE,
-  foto_url TEXT,  -- URL zum Foto in Supabase Storage
+  avatar_url TEXT,  -- URL zum Foto in Supabase Storage
   
   -- Strukturierte Daten als JSONB für Flexibilität
   sicherheit JSONB DEFAULT '{}'::jsonb,

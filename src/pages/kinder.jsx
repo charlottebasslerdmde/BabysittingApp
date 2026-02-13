@@ -7,6 +7,8 @@ import {
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useTranslation } from '../js/i18n';
 import { compressImage, compressBase64Image, safeLocalStorageSet } from '../js/imageUtils';
+import { saveChildToSupabase, deleteChildFromSupabase } from '../js/childrenService';
+import { supabase } from '../js/supabase';
 
 const KinderPage = () => {
   // i18n Hook
@@ -124,7 +126,7 @@ const KinderPage = () => {
       
       f7.preloader.hide();
       f7.toast.show({ 
-        text: '✓ Foto komprimiert und bereit', 
+        text: 'Foto komprimiert und bereit', 
         closeTimeout: 1500, 
         position: 'center',
         cssClass: 'toast-success'
@@ -159,7 +161,7 @@ const KinderPage = () => {
     }
   };
 
-  const addKind = () => {
+  const addKind = async () => {
     if (!newKindName.trim()) {
       f7.toast.show({ text: t('kinder_name_required'), position: 'center', closeTimeout: 2000 });
       return;
@@ -228,14 +230,29 @@ const KinderPage = () => {
     // Custom Event dispatchen, um andere Seiten zu informieren
     window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'added', kind: newKind } }));
     
+    // Zu Supabase synchronisieren
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        const syncResult = await saveChildToSupabase(newKind, session.user.id);
+        if (syncResult.success) {
+          console.log('Neues Kind erfolgreich zu Supabase synchronisiert');
+        } else {
+          console.warn('Supabase-Sync fehlgeschlagen:', syncResult.error);
+        }
+      }
+    } catch (error) {
+      console.warn('Fehler bei Supabase-Synchronisation:', error);
+    }
+    
     // Navigation erst nach Schließen des Sheets
     setTimeout(() => {
       f7.router.navigate(`/kind/${newKind.id}/`);
     }, 300);
   };
 
-  const deleteKind = (id) => {
-    f7.dialog.confirm(t('kinder_delete_confirm'), t('kinder_delete_title'), () => {
+  const deleteKind = async (id) => {
+    f7.dialog.confirm(t('kinder_delete_confirm'), t('kinder_delete_title'), async () => {
       const updatedKinder = kinder.filter(k => k.id !== id);
       
       // Direkt in localStorage speichern
@@ -245,6 +262,21 @@ const KinderPage = () => {
       
       // Custom Event dispatchen
       window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'deleted', kindId: id } }));
+      
+      // Aus Supabase löschen
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          const deleteResult = await deleteChildFromSupabase(id, session.user.id);
+          if (deleteResult.success) {
+            console.log('Kind erfolgreich aus Supabase gelöscht');
+          } else {
+            console.warn('Supabase-Löschung fehlgeschlagen:', deleteResult.error);
+          }
+        }
+      } catch (error) {
+        console.warn('Fehler bei Supabase-Löschung:', error);
+      }
     });
   };
 

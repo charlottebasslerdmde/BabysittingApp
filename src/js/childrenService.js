@@ -21,39 +21,18 @@ export async function loadChildrenFromSupabase(userId) {
     }
 
     // Konvertiere Supabase-Format zu App-Format
-    const kinder = data.map(child => ({
-      id: child.id,
-      basis: {
-        name: child.name || '',
-        nachname: child.nachname || '',
-        rufname: child.rufname || '',
-        geburtsdatum: child.geburtsdatum || '',
-        foto: child.foto_url || '', // URL wird später durch base64 ersetzt
-      },
-      sicherheit: child.sicherheit || {
-        notfallKontakte: '',
-        allergien: '',
-        medikamente: [],
-        hausarzt: '',
-        krankenkasse: ''
-      },
-      routine: child.routine || {
-        essensplan: '',
-        schlafenszeitRitual: '',
-        hygiene: ''
-      },
-      regeln: child.regeln || {
-        medienzeit: '',
-        suessigkeiten: '',
-        tabuZonen: ''
-      },
-      psychologie: child.psychologie || {
-        aengste: '',
-        beruhigungsStrategie: '',
-        belohnungssystem: ''
-      },
-      logs: child.logs || []
-    }));
+    // Die Tabelle speichert das komplette Kind-Objekt im 'data' Feld (JSONB)
+    const kinder = data.map(child => {
+      // child.data enthält das komplette Kind-Objekt
+      const kindData = child.data;
+      
+      // Falls Foto in avatar_url vorhanden ist, überschreibe es im data-Objekt
+      if (child.avatar_url && kindData.basis) {
+        kindData.basis.foto = child.avatar_url;
+      }
+      
+      return kindData;
+    });
 
     return { success: true, data: kinder };
   } catch (error) {
@@ -70,33 +49,17 @@ export async function loadChildrenFromSupabase(userId) {
  */
 export async function saveChildToSupabase(kind, userId) {
   try {
-    // Foto separat behandeln (Upload zu Storage)
-    let fotoUrl = kind.basis.foto;
-    if (kind.basis.foto && kind.basis.foto.startsWith('data:')) {
-      // Foto ist noch base64 -> Upload zu Storage
-      const uploadResult = await uploadChildPhoto(kind.id, kind.basis.foto, userId);
-      if (uploadResult.success) {
-        fotoUrl = uploadResult.url;
-      } else {
-        console.warn('Foto-Upload fehlgeschlagen, speichere ohne Foto:', uploadResult.error);
-        fotoUrl = '';
-      }
-    }
+    // WICHTIG: Foto direkt als base64 in DB speichern (wie bei User-Profilbildern)
+    // Kein Upload zu Storage mehr!
+    const fotoBase64 = kind.basis.foto || '';
 
     // Daten für Supabase vorbereiten
+    // Die Tabelle hat: id, user_id, data (JSONB), avatar_url
     const childData = {
       id: kind.id,
       user_id: userId,
-      name: kind.basis.name,
-      nachname: kind.basis.nachname || '',
-      rufname: kind.basis.rufname || '',
-      geburtsdatum: kind.basis.geburtsdatum || null,
-      foto_url: fotoUrl,
-      sicherheit: kind.sicherheit || {},
-      routine: kind.routine || {},
-      regeln: kind.regeln || {},
-      psychologie: kind.psychologie || {},
-      logs: kind.logs || []
+      data: kind, // KOMPLETTES Kind-Objekt als JSONB speichern
+      avatar_url: fotoBase64 // Foto separat für schnellen Zugriff
     };
 
     // Prüfen ob Kind schon existiert (Update vs Insert)
@@ -125,6 +88,7 @@ export async function saveChildToSupabase(kind, userId) {
       return { success: false, error: result.error.message };
     }
 
+    console.log('✅ Kind erfolgreich in Supabase gespeichert (Foto:', fotoBase64 ? 'vorhanden' : 'leer', ')');
     return { success: true };
   } catch (error) {
     console.error('Fehler beim Speichern des Kindes:', error);
@@ -140,10 +104,7 @@ export async function saveChildToSupabase(kind, userId) {
  */
 export async function deleteChildFromSupabase(childId, userId) {
   try {
-    // Erst das Foto löschen (falls vorhanden)
-    await deleteChildPhoto(childId, userId);
-
-    // Dann den Datenbankeintrag
+    // Datenbankeintrag löschen (Foto ist in avatar_url als base64, wird automatisch gelöscht)
     const { error } = await supabase
       .from('children')
       .delete()
@@ -269,38 +230,62 @@ export async function deleteChildPhoto(childId, userId) {
  */
 export async function syncChildrenWithSupabase(userId) {
   try {
+    console.log('🔄 syncChildrenWithSupabase gestartet');
+    
     // 1. Lade Kinder von Supabase
     const remoteResult = await loadChildrenFromSupabase(userId);
     if (!remoteResult.success) {
+      console.log('⚠️ Supabase-Laden fehlgeschlagen, verwende nur lokale Daten');
       return { success: false, error: remoteResult.error, data: [] };
     }
 
+    console.log('📥 Von Supabase geladen:', remoteResult.data.length, 'Kinder');
+
     // 2. Lade lokale Kinder
     const localKinder = JSON.parse(localStorage.getItem('sitterSafe_kinder') || '[]');
+    console.log('📂 Lokal vorhanden:', localKinder.length, 'Kinder');
 
-    // 3. Merge-Strategie: Supabase ist führend, aber lokale Änderungen behalten
-    const mergedKinder = [...remoteResult.data];
+    // 3. Merge-Strategie: Supabase ist führend, aber lokale Fotos bleiben erhalten!
+    const mergedKinder = [];
     const remoteIds = new Set(remoteResult.data.map(k => k.id));
+
+    // Für jedes Remote-Kind: Prüfe ob es lokal ein Foto gibt
+    for (const remoteKind of remoteResult.data) {
+      const localKind = localKinder.find(lk => lk.id === remoteKind.id);
+      
+      // Wenn lokales Kind ein Foto hat, aber Remote nicht → Lokales Foto behalten
+      if (localKind && localKind.basis?.foto && !remoteKind.basis?.foto) {
+        console.log('📷 Behalte lokales Foto für:', remoteKind.basis.name);
+        mergedKinder.push({
+          ...remoteKind,
+          basis: {
+            ...remoteKind.basis,
+            foto: localKind.basis.foto
+          }
+        });
+      } else {
+        mergedKinder.push(remoteKind);
+      }
+    }
 
     // Lokale Kinder, die nicht in Supabase sind, hinzufügen
     for (const localKind of localKinder) {
       if (!remoteIds.has(localKind.id)) {
+        console.log('➕ Lokales Kind nicht in Supabase gefunden, füge hinzu:', localKind.basis.name);
         // Neues lokales Kind -> zu Supabase hochladen
         await saveChildToSupabase(localKind, userId);
         mergedKinder.push(localKind);
       }
     }
 
-    // 4. Fotos herunterladen und als base64 speichern (für Offline-Nutzung)
-    for (const kind of mergedKinder) {
-      if (kind.basis.foto && !kind.basis.foto.startsWith('data:')) {
-        const base64 = await downloadPhotoAsBase64(kind.basis.foto);
-        kind.basis.foto = base64;
-      }
-    }
+    console.log('✅ Merge abgeschlossen:', mergedKinder.length, 'Kinder (mit lokalen Fotos erhalten)');
+
+    // 4. Fotos sind bereits base64, kein Download nötig!
+    // (Die avatar_url Spalte enthält direkt den base64-String)
 
     // 5. In localStorage speichern
     localStorage.setItem('sitterSafe_kinder', JSON.stringify(mergedKinder));
+    console.log('💾 Merged Kinder in localStorage gespeichert');
 
     return { success: true, data: mergedKinder };
   } catch (error) {

@@ -5,7 +5,7 @@ import LoginPage from '../pages/Login.jsx';
 import TestPage from '../pages/test.jsx';
 
 // WICHTIG: Stelle sicher, dass die Dateinamen exakt übereinstimmen!
-import KinderPage from '../pages/Kinderübersicht.jsx'; 
+import KinderPage from '../pages/kinder.jsx'; 
 import KindDetailPage from '../pages/KindDetailPage.jsx'; // Die neue Detail-Seite
 import SettingsPage from '../pages/settings.jsx';
 import CatalogPage from '../pages/catalog.jsx';

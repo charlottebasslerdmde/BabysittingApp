@@ -106,7 +106,7 @@ const FormPage = ({ f7router }) => {
         );
       } else {
         f7.toast.show({ 
-          text: '✓ In Cloud gespeichert', 
+          text: 'In Cloud gespeichert', 
           icon: '<i class="f7-icons">checkmark_alt</i>', 
           closeTimeout: 2000 
         });
