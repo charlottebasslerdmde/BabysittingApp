@@ -73,7 +73,7 @@ const HomePage = () => {
     icon: '',
     title: '',
     details: {},
-    selectedKind: null,
+    selectedKinder: [], // Array für Multi-Kind-Support
     mood: '',
     editingEventId: null // Für Bearbeitungsmodus
   });
@@ -190,6 +190,11 @@ const HomePage = () => {
     const handleKinderUpdate = (event) => {
       console.log('Kinder Update Event:', event.detail);
       loadKinderData(); // Kinder-Daten neu laden
+      
+      // Wenn ein Kind gelöscht wurde, Event-Log neu laden
+      if (event.detail?.action === 'deleted') {
+        loadEventLog();
+      }
     };
 
     window.addEventListener('kinderUpdated', handleKinderUpdate);
@@ -340,16 +345,35 @@ const HomePage = () => {
 
       if (data && data.length > 0) {
         // Konvertiere Supabase-Format zu lokalem Format
-        const events = data.map(event => ({
-          id: event.id,
-          time: new Date(event.event_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          activity: event.details?.activityText || event.event_type,
-          icon: event.icon || 'circle',
-          color: event.color || 'blue',
-          details: event.details || {},
-          kindId: event.child_id,
-          mood: event.mood
-        }));
+        // Gruppiere Events die zur gleichen Zeit mit gleichem Typ für mehrere Kinder erstellt wurden
+        const eventMap = new Map();
+        
+        data.forEach(event => {
+          const timeKey = new Date(event.event_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const mapKey = `${timeKey}-${event.event_type}`;
+          
+          if (eventMap.has(mapKey)) {
+            // Füge kind zur bestehenden Gruppe hinzu
+            const existing = eventMap.get(mapKey);
+            if (!existing.kindIds.includes(event.child_id)) {
+              existing.kindIds.push(event.child_id);
+            }
+          } else {
+            // Erstelle neue Gruppe
+            eventMap.set(mapKey, {
+              id: event.id,
+              time: timeKey,
+              activity: event.details?.activityText || event.event_type,
+              icon: event.icon || 'circle',
+              color: event.color || 'blue',
+              details: event.details || {},
+              kindIds: event.child_id ? [event.child_id] : [],
+              mood: event.mood
+            });
+          }
+        });
+        
+        const events = Array.from(eventMap.values());
         setEventLog(events);
         // Cache in localStorage
         localStorage.setItem('sitterSafe_eventLog', JSON.stringify(events));
@@ -385,7 +409,7 @@ const HomePage = () => {
       opened: true, 
       type, 
       ...configs[type],
-      selectedKind: kinder.length === 1 ? kinder[0].id : null,
+      selectedKinder: kinder.length === 1 ? [kinder[0].id] : [], // Array mit einem Kind oder leer
       mood: '😊',
       editingEventId: null
     });
@@ -411,30 +435,98 @@ const HomePage = () => {
       spiel: { title: t('activity_play_title'), icon: '🧸' }
     };
 
+    // Migration: altes kindId Format zu neuem kindIds Array
+    let selectedKinder = [];
+    if (event.kindIds && Array.isArray(event.kindIds)) {
+      selectedKinder = event.kindIds;
+    } else if (event.kindId) {
+      selectedKinder = [event.kindId];
+    }
+
     setActivitySheet({
       opened: true,
       type,
       ...configs[type],
       details: event.details || {},
-      selectedKind: event.kindId || null,
+      selectedKinder: selectedKinder,
       mood: event.mood || '😊',
       editingEventId: eventId
     });
   };
 
   const saveActivityDetail = async () => {
-    const { type, title, icon, details, selectedKind, mood, editingEventId } = activitySheet;
+    const { type, title, icon, details, selectedKinder, mood, editingEventId } = activitySheet;
+    
+    // VALIDIERUNG: Mindestens ein Kind muss ausgewählt sein
+    if (!selectedKinder || selectedKinder.length === 0) {
+      f7.dialog.alert(
+        'Bitte wähle mindestens ein Kind aus, für das diese Aktivität gilt.',
+        'Kind erforderlich'
+      );
+      return;
+    }
+    
+    // VALIDIERUNG: Bei Schlaf-Aktivitäten keine negative Zeitspanne erlauben
+    if (type === 'schlaf' && details.von && details.bis) {
+      const vonTime = details.von.split(':').map(Number);
+      const bisTime = details.bis.split(':').map(Number);
+      
+      if (vonTime.length !== 2 || bisTime.length !== 2) {
+        f7.dialog.alert(
+          'Bitte gib gültige Zeiten im Format HH:MM ein.',
+          'Ungültige Zeit'
+        );
+        return;
+      }
+      
+      const vonMinutes = vonTime[0] * 60 + vonTime[1];
+      const bisMinutes = bisTime[0] * 60 + bisTime[1];
+      
+      // Berechne Schlafdauer
+      let schlafDauer;
+      if (bisMinutes <= vonMinutes) {
+        // Potentieller Über-Nacht-Schlaf
+        schlafDauer = (1440 - vonMinutes) + bisMinutes; // 1440 = 24 Stunden in Minuten
+        
+        // Validierung: Über-Nacht-Schlaf sollte nicht unrealistisch lang sein
+        // Typisch: 19:00 - 07:00 = 12h, 20:00 - 06:00 = 10h
+        // Aber 14:00 - 13:55 würde 23h 55min ergeben -> unrealistisch
+        if (schlafDauer > 720) { // Mehr als 12 Stunden
+          f7.dialog.alert(
+            `Die berechnete Schlafzeit beträgt ${Math.floor(schlafDauer / 60)}h ${schlafDauer % 60}min (über Nacht).\n\nDas erscheint sehr lang. Bitte überprüfe die Zeitangaben.\n\nTipp: "Von" muss vor "Bis" liegen (z.B. 20:00 bis 06:00).`,
+            'Unrealistische Zeitspanne'
+          );
+          return;
+        }
+      } else {
+        // Normaler Schlaf am gleichen Tag
+        schlafDauer = bisMinutes - vonMinutes;
+      }
+      
+      // Mindestdauer prüfen (zu kurze Zeiten sind oft Fehleingaben)
+      if (schlafDauer < 5) {
+        f7.dialog.alert(
+          `Die Schlafzeit beträgt nur ${schlafDauer} Minute${schlafDauer !== 1 ? 'n' : ''}.\n\nBitte überprüfe die "Von" und "Bis" Zeiten.`,
+          'Sehr kurze Schlafzeit'
+        );
+        return;
+      }
+    }
+    
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
-    // Kind-Name hinzufügen wenn ausgewählt
-    let kindName = '';
-    if (selectedKind) {
-      const kind = kinder.find(k => k.id === selectedKind);
-      kindName = kind ? kind.basis.rufname || kind.basis.name : '';
-    }
+    // Kind-Namen hinzufügen (mehrere Kinder möglich)
+    let kindNames = [];
+    selectedKinder.forEach(kindId => {
+      const kind = kinder.find(k => k.id === kindId);
+      if (kind) {
+        kindNames.push(kind.basis.rufname || kind.basis.name);
+      }
+    });
     
-    let activityText = kindName ? `${kindName}: ${title}` : title;
+    const kindNameString = kindNames.join(', ');
+    let activityText = kindNameString ? `${kindNameString}: ${title}` : title;
     if (type === 'essen' && details.was) activityText += ` - ${details.was}`;
     if (type === 'schlaf' && details.von) activityText += ` - ${details.von} bis ${details.bis || '?'}`;
     if (type === 'windel') activityText += ` - ${details.art}`;
@@ -452,7 +544,7 @@ const HomePage = () => {
         icon: iconMap[type],
         color: colorMap[type],
         details: { ...details, activityText },
-        kindId: selectedKind,
+        kindIds: selectedKinder, // Array von Kind-IDs
         mood
       };
       
@@ -469,7 +561,7 @@ const HomePage = () => {
         icon: iconMap[type], 
         color: colorMap[type],
         details: { ...details, activityText },
-        kindId: selectedKind,
+        kindIds: selectedKinder, // Array von Kind-IDs
         mood
       };
     
@@ -479,22 +571,25 @@ const HomePage = () => {
       f7.toast.show({ text: `${title} ${t('tracker_saved')} ${mood}`, closeTimeout: 1500, position: 'center' });
     }
     
-    // In Supabase speichern (Background)
+    // In Supabase speichern (Background) - Multi-Kind-Support
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
+        // Für jedes ausgewählte Kind einen Event erstellen
+        const eventInserts = selectedKinder.map(childId => ({
+          user_id: session.user.id,
+          child_id: childId,
+          event_type: type,
+          event_time: now.toISOString(),
+          mood: mood,
+          details: { ...details, activityText, allChildIds: selectedKinder },
+          icon: iconMap[type],
+          color: colorMap[type]
+        }));
+        
         const { error } = await supabase
           .from('events')
-          .insert([{
-            user_id: session.user.id,
-            child_id: selectedKind,
-            event_type: type,
-            event_time: now.toISOString(),
-            mood: mood,
-            details: { ...details, activityText },
-            icon: iconMap[type],
-            color: colorMap[type]
-          }]);
+          .insert(eventInserts);
 
         if (error) {
           console.error('Error saving event to Supabase:', error);
@@ -518,25 +613,48 @@ const HomePage = () => {
     });
   };
 
-  const deleteEvent = (eventId) => {
+  const deleteEvent = async (eventId) => {
     const event = eventLog.find(e => e.id === eventId);
-    setLastDeleted(event);
-    setEventLog(eventLog.filter(e => e.id !== eventId));
-    f7.toast.show({ 
-      text: t('tracker_deleted'), 
-      closeTimeout: 3000, 
-      position: 'center',
-      closeButton: true,
-      closeButtonText: t('tracker_undo'),
-      closeButtonColor: 'blue',
-      on: {
-        close: (toast, closeByButton) => {
-          if (closeByButton && lastDeleted) {
-            setEventLog([lastDeleted, ...eventLog.filter(e => e.id !== eventId)]);
-            setLastDeleted(null);
+    if (!event) return;
+    
+    // Event aus State entfernen
+    const updatedLog = eventLog.filter(e => e.id !== eventId);
+    setEventLog(updatedLog);
+    
+    // Sofort in localStorage speichern
+    safeLocalStorageSet('sitterSafe_eventLog', updatedLog);
+    
+    // Aus Supabase löschen (Background)
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user && event.kindIds) {
+        // Lösche alle Supabase-Einträge für dieses Event (kann mehrere sein bei Multi-Kind)
+        for (const kindId of event.kindIds) {
+          const { error } = await supabase
+            .from('events')
+            .delete()
+            .eq('user_id', session.user.id)
+            .eq('child_id', kindId)
+            .eq('event_type', event.icon === 'mouth_fill' ? 'essen' : 
+                               event.icon === 'moon_zzz_fill' ? 'schlaf' : 
+                               event.icon === 'drop_fill' ? 'windel' : 'spiel')
+            .gte('event_time', new Date().toISOString().split('T')[0] + 'T00:00:00');
+          
+          if (error && error.code !== 'PGRST116' && error.code !== '42P01') {
+            console.warn('Fehler beim Löschen aus Supabase:', error);
           }
         }
       }
+    } catch (error) {
+      console.warn('Fehler bei Supabase-Löschung:', error);
+    }
+    
+    // Einfache Bestätigung
+    f7.toast.show({ 
+      text: t('tracker_deleted'), 
+      closeTimeout: 2000, 
+      position: 'center',
+      cssClass: 'toast-success'
     });
   };
 
@@ -1524,21 +1642,49 @@ const HomePage = () => {
           <div style={{overflowY: 'auto', flex: 1}}>
             <Block style={{paddingTop: '8px', paddingBottom: '24px'}}>
               
-              {/* Kind-Auswahl wenn mehrere Kinder */}
-              {kinder.length > 1 && (
-                <List noHairlinesMd strong inset style={{marginBottom: '16px'}}>
-                  <ListInput
-                    label={t('activity_which_child')}
-                    type="select"
-                    value={activitySheet.selectedKind || ''}
-                    onInput={(e) => setActivitySheet({...activitySheet, selectedKind: e.target.value})}
-                  >
-                    <option value="">{t('activity_please_select')}</option>
-                    {kinder.map(kind => (
-                      <option key={kind.id} value={kind.id}>{kind.basis.name}</option>
-                    ))}
-                  </ListInput>
-                </List>
+              {/* Kind-Auswahl (Multi-Select mit Chips) */}
+              {kinder.length > 0 && (
+                <div style={{marginBottom: '16px'}}>
+                  <div style={{marginBottom: '8px', fontWeight: 'bold', color: '#333', fontSize: '15px', paddingLeft: '8px'}}>
+                    {t('activity_which_child')} *
+                  </div>
+                  <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '0 8px'}}>
+                    {kinder.map(kind => {
+                      const isSelected = activitySheet.selectedKinder && activitySheet.selectedKinder.includes(kind.id);
+                      return (
+                        <div
+                          key={kind.id}
+                          onClick={() => {
+                            const currentSelected = activitySheet.selectedKinder || [];
+                            const newSelected = isSelected
+                              ? currentSelected.filter(id => id !== kind.id)
+                              : [...currentSelected, kind.id];
+                            setActivitySheet({...activitySheet, selectedKinder: newSelected});
+                          }}
+                          style={{
+                            padding: '8px 16px',
+                            borderRadius: '20px',
+                            backgroundColor: isSelected ? '#007aff' : '#f0f0f0',
+                            color: isSelected ? 'white' : '#333',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: isSelected ? '600' : '400',
+                            transition: 'all 0.2s',
+                            border: isSelected ? '2px solid #007aff' : '2px solid transparent',
+                            userSelect: 'none'
+                          }}
+                        >
+                          {kind.basis.rufname || kind.basis.name}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {(!activitySheet.selectedKinder || activitySheet.selectedKinder.length === 0) && (
+                    <div style={{fontSize: '12px', color: '#ff3b30', marginTop: '4px', paddingLeft: '8px'}}>
+                      ⚠️ Bitte mindestens ein Kind auswählen
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Stimmung */}

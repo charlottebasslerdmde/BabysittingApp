@@ -260,6 +260,35 @@ const KinderPage = () => {
       
       setKinder(updatedKinder);
       
+      // WICHTIG: Auch Events des gelöschten Kindes entfernen
+      const storedEventLog = localStorage.getItem('sitterSafe_eventLog');
+      if (storedEventLog) {
+        try {
+          const eventLog = JSON.parse(storedEventLog);
+          // Filter Events - entferne alle Events die NUR dieses Kind betreffen
+          const updatedEventLog = eventLog.filter(event => {
+            if (!event.kindIds && event.kindId === id) {
+              // Altes Format: einzelnes kindId
+              return false;
+            }
+            if (event.kindIds && Array.isArray(event.kindIds)) {
+              // Neues Format: Array von kindIds
+              // Entferne das gelöschte Kind aus dem Array
+              event.kindIds = event.kindIds.filter(kId => kId !== id);
+              // Behalte Event nur wenn noch Kinder übrig sind
+              return event.kindIds.length > 0;
+            }
+            // Behalte Events ohne Kind-Zuordnung (falls vorhanden)
+            return !event.kindId;
+          });
+          
+          localStorage.setItem('sitterSafe_eventLog', JSON.stringify(updatedEventLog));
+          console.log(`Events des gelöschten Kinds ${id} wurden bereinigt`);
+        } catch (e) {
+          console.error('Fehler beim Bereinigen der Events:', e);
+        }
+      }
+      
       // Custom Event dispatchen
       window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'deleted', kindId: id } }));
       
@@ -272,6 +301,23 @@ const KinderPage = () => {
             console.log('Kind erfolgreich aus Supabase gelöscht');
           } else {
             console.warn('Supabase-Löschung fehlgeschlagen:', deleteResult.error);
+          }
+          
+          // Events des Kindes auch aus Supabase löschen
+          try {
+            const { error: eventsError } = await supabase
+              .from('events')
+              .delete()
+              .eq('child_id', id)
+              .eq('user_id', session.user.id);
+            
+            if (eventsError && eventsError.code !== 'PGRST116' && eventsError.code !== '42P01') {
+              console.warn('Fehler beim Löschen der Events aus Supabase:', eventsError);
+            } else {
+              console.log('Events des gelöschten Kinds aus Supabase entfernt');
+            }
+          } catch (eventsErr) {
+            console.warn('Fehler beim Löschen der Events:', eventsErr);
           }
         }
       } catch (error) {
