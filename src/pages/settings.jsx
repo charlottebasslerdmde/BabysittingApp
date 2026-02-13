@@ -747,7 +747,7 @@ const SettingsPage = () => {
                     localStorage.setItem(key, backup.backup_data[key]);
                   }
                 });
-                f7.toast.show({text: 'Wiederherstellung erfolgreich', closeTimeout: 2000});
+                f7.toast.show({text: '✅ Wiederherstellung erfolgreich', closeTimeout: 2000});
                 setTimeout(() => window.location.reload(), 1500);
               }
             );

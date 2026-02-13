@@ -40,8 +40,9 @@ const KinderPage = () => {
     };
   }, []);
   
-  // Hilfsfunktion zum Laden der Kinder aus localStorage
-  const loadKinder = () => {
+  // Hilfsfunktion zum Laden der Kinder aus localStorage und Supabase
+  const loadKinder = async () => {
+    // Offline-First: Zuerst LocalStorage laden
     const storedKinder = localStorage.getItem('sitterSafe_kinder');
     if (storedKinder) {
       try {
@@ -49,6 +50,36 @@ const KinderPage = () => {
       } catch (e) {
         console.error("Fehler beim Laden der Daten", e);
       }
+    }
+
+    // Dann von Supabase synchronisieren (wenn User eingeloggt)
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return; // Kein User eingeloggt
+      
+      const { data, error } = await supabase
+        .from('children')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading children from Supabase:', error);
+        return; // Fehler ignorieren und lokale Daten verwenden
+      }
+
+      if (data && data.length > 0) {
+        // Konvertiere Supabase-Format zu lokalem Format
+        const children = data.map(child => child.data);
+        setKinder(children);
+        // Cache in localStorage
+        localStorage.setItem('sitterSafe_kinder', JSON.stringify(children));
+      } else if (!storedKinder) {
+        setKinder([]); // Leeres Array wenn weder Supabase noch localStorage Daten haben
+      }
+    } catch (error) {
+      console.error('Error syncing children:', error);
+      // Bei Fehler: Fallback auf localStorage (bereits geladen)
     }
   };
 

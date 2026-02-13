@@ -269,6 +269,7 @@ const HomePage = () => {
       const { data, error } = await supabase
         .from('children')
         .select('*')
+        .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -332,6 +333,7 @@ const HomePage = () => {
       const { data, error } = await supabase
         .from('events')
         .select('*')
+        .eq('user_id', session.user.id)
         .gte('event_time', `${today}T00:00:00`)
         .order('event_time', { ascending: false });
 
