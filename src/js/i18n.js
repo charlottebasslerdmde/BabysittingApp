@@ -238,7 +238,7 @@ const translations = {
     safety_tip_text: 'Trage unten die Telefonnummern der Eltern ein, damit du sie schnell anrufen kannst!',
     safety_parent: 'Elternteil',
     safety_location_title: 'Unser Standort',
-    safety_address_placeholder: '📍 Adresse eingeben (für Notfälle wichtig)...',
+    safety_address_placeholder: 'Adresse eingeben (für Notfälle wichtig)...',
     safety_tonight: 'Heute Abend',
     safety_return_time: 'Rückkehr um:',
     safety_parents_location: 'Eltern sind:',

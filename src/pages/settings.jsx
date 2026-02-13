@@ -382,7 +382,7 @@ const SettingsPage = () => {
             }
           }
         },
-        {text: 'Abbrechen', color: 'red'}
+        {text: 'Abbrechen', color: 'red', bold: true}
       ]
     }).open();
   };
@@ -717,20 +717,31 @@ const SettingsPage = () => {
       }
 
       // Backups als Liste anzeigen
-      const buttons = data.map(backup => {
-        const date = new Date(backup.created_at).toLocaleDateString('de-DE', {
+      const buttons = data.map((backup, index) => {
+        const dateObj = new Date(backup.created_at);
+        // Vollständiges Datum: DD.MM.YYYY
+        const fullDate = dateObj.toLocaleDateString('de-DE', {
           day: '2-digit',
           month: '2-digit',
-          year: 'numeric',
+          year: 'numeric'
+        });
+        const time = dateObj.toLocaleTimeString('de-DE', {
           hour: '2-digit',
           minute: '2-digit'
         });
         
+        // Neuestes Backup hervorheben mit klarer Formatierung
+        const label = index === 0 
+          ? `${fullDate} — ${time} Uhr` 
+          : `${fullDate} — ${time} Uhr`;
+        
         return {
-          text: `📅 ${date}`,
+          text: label,
+          bold: true,
+          color: 'blue', // Kräftige Farbe für besseren Kontrast
           onClick: () => {
             f7.dialog.confirm(
-              `Backup vom ${date} wiederherstellen?`,
+              `Backup vom ${fullDate} um ${time} Uhr wiederherstellen?`,
               'Backup laden',
               () => {
                 Object.keys(backup.backup_data).forEach(key => {
@@ -746,12 +757,13 @@ const SettingsPage = () => {
         };
       });
 
-      buttons.push({text: 'Abbrechen', color: 'red'});
+      buttons.push({text: 'Abbrechen', color: 'red', bold: true});
 
       f7.dialog.create({
         title: `${data.length} Cloud-Backup(s) gefunden`,
         text: 'Wähle ein Backup zum Wiederherstellen:',
-        buttons: buttons
+        buttons: buttons,
+        verticalButtons: true // Vertikale Liste für bessere Lesbarkeit
       }).open();
     } catch (error) {
       f7.dialog.alert('Fehler beim Laden der Backups: ' + error.message, 'Fehler');

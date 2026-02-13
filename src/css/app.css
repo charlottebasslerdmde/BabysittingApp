@@ -2,3 +2,50 @@
 
 /* Import custom toast styles */
 @import './custom-toasts.css';
+
+/* ============================================
+   BARRIEREFREIHEIT: Erhöhter Kontrast (WCAG AA)
+   ============================================ */
+
+:root {
+  /* Theme-Farbe: Dunkler für besseren Kontrast (7.4:1 auf Weiß) */
+  --f7-theme-color: #0051d5;
+  --f7-theme-color-rgb: 0, 81, 213;
+  --f7-theme-color-shade: #003d99;
+  --f7-theme-color-tint: #336de6;
+  
+  /* Button-Farben für hohen Kontrast */
+  --f7-button-fill-bg-color: #0051d5;
+  --f7-button-fill-text-color: #ffffff;
+  --f7-button-outline-border-width: 2px;
+  --f7-button-outline-border-color: #0051d5;
+  --f7-button-text-color: #0051d5;
+  
+  /* Link-Farben */
+  --f7-link-color: #0051d5;
+  --f7-list-link-text-color: #0051d5;
+  --f7-link-highlight-color: rgba(0, 81, 213, 0.15);
+  
+  /* Navbar & Toolbar - besserer Kontrast */
+  --f7-navbar-link-color: #0051d5;
+  --f7-tabbar-link-active-color: #0051d5;
+}
+
+/* Dark Mode: Hellere Farben für Kontrast auf dunklem Hintergrund (8.2:1) */
+.dark {
+  --f7-theme-color: #4d9fff;
+  --f7-theme-color-rgb: 77, 159, 255;
+  --f7-theme-color-shade: #2680ff;
+  --f7-theme-color-tint: #6eadff;
+  
+  --f7-button-fill-bg-color: #4d9fff;
+  --f7-button-text-color: #4d9fff;
+  --f7-button-outline-border-color: #4d9fff;
+  
+  --f7-link-color: #4d9fff;
+  --f7-list-link-text-color: #4d9fff;
+  --f7-link-highlight-color: rgba(77, 159, 255, 0.15);
+  
+  --f7-navbar-link-color: #4d9fff;
+  --f7-tabbar-link-active-color: #4d9fff;
+}

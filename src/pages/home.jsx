@@ -984,7 +984,7 @@ const HomePage = () => {
             <Card style={{
               margin: '16px',
               marginTop: '8px',
-              background: 'linear-gradient(135deg, #00e1ff 0%, #007aff 100%)',
+              background: 'linear-gradient(135deg, #0066cc 0%, #0055bb 100%)',
               color: 'white',
               border: 'none'
             }}>
@@ -995,7 +995,7 @@ const HomePage = () => {
                     <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '4px' }}>
                       {t('tracker_install_app')}
                     </div>
-                    <div style={{ fontSize: '13px', opacity: 0.95 }}>
+                    <div style={{ fontSize: '13px', opacity: 1, fontWeight: '500' }}>
                       {t('tracker_install_description')}
                     </div>
                   </div>
@@ -1040,25 +1040,25 @@ const HomePage = () => {
 
           {/* Tages-Statistik */}
           {eventLog.length > 0 && (
-            <Card style={{margin: '16px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white'}}>
+            <Card style={{margin: '16px', background: 'linear-gradient(135deg, #5566dd 0%, #663399 100%)', color: 'white'}}>
               <CardContent>
-                <div style={{fontWeight: 'bold', marginBottom: '12px', fontSize: '16px'}}>📊 {t('tracker_today')}</div>
+                <div style={{fontWeight: 'bold', marginBottom: '12px', fontSize: '17px', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>📊 {t('tracker_today')}</div>
                 <div style={{display: 'flex', justifyContent: 'space-around', fontSize: '14px'}}>
                   <div style={{textAlign: 'center'}}>
-                    <div style={{fontSize: '24px', fontWeight: 'bold'}}>{getStatistics().essen}</div>
-                    <div>🍼 {t('tracker_food')}</div>
+                    <div style={{fontSize: '26px', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>{getStatistics().essen}</div>
+                    <div style={{fontWeight: '600', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>🍼 {t('tracker_food')}</div>
                   </div>
                   <div style={{textAlign: 'center'}}>
-                    <div style={{fontSize: '24px', fontWeight: 'bold'}}>{getStatistics().schlaf}</div>
-                    <div>😴 {t('tracker_sleep')}</div>
+                    <div style={{fontSize: '26px', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>{getStatistics().schlaf}</div>
+                    <div style={{fontWeight: '600', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>😴 {t('tracker_sleep')}</div>
                   </div>
                   <div style={{textAlign: 'center'}}>
-                    <div style={{fontSize: '24px', fontWeight: 'bold'}}>{getStatistics().windel}</div>
-                    <div>💩 {t('tracker_diaper')}</div>
+                    <div style={{fontSize: '26px', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>{getStatistics().windel}</div>
+                    <div style={{fontWeight: '600', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>💩 {t('tracker_diaper')}</div>
                   </div>
                   <div style={{textAlign: 'center'}}>
-                    <div style={{fontSize: '24px', fontWeight: 'bold'}}>{getStatistics().spiel}</div>
-                    <div>🧸 {t('tracker_play')}</div>
+                    <div style={{fontSize: '26px', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>{getStatistics().spiel}</div>
+                    <div style={{fontWeight: '600', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>🧸 {t('tracker_play')}</div>
                   </div>
                 </div>
               </CardContent>
@@ -1105,7 +1105,7 @@ const HomePage = () => {
           </div>
 
           <Block style={{marginTop: '8px', marginBottom: '0'}}>
-             <Button fill color="yellow" textColor="black" href="/nightlight/" round>
+             <Button fill color="yellow" href="/nightlight/" round style={{color: '#000', fontWeight: '600'}}>
                <Icon f7="lightbulb_fill" size="18px" style={{marginRight: '8px'}}/>
                {t('tracker_nightlight')}
              </Button>
@@ -1194,14 +1194,14 @@ const HomePage = () => {
           <BlockTitle>{t('photos_capture_moment')}</BlockTitle>
           <Block>
             <Card style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #5566dd 0%, #663399 100%)',
               color: 'white',
               textAlign: 'center',
               padding: '20px'
             }}>
               <CardContent>
                 <Icon icon="f7:camera_fill" size="60" color="white" style={{marginBottom: '15px'}}/>
-                <p style={{marginBottom: '20px', fontSize: '15px'}}>
+                <p style={{marginBottom: '20px', fontSize: '15px', fontWeight: '500', textShadow: '0 1px 2px rgba(0,0,0,0.2)'}}>
                   Halte besondere Momente fest und erstelle ein Foto-Tagebuch
                 </p>
                 <input
@@ -1228,10 +1228,12 @@ const HomePage = () => {
                 {!Capacitor.isNativePlatform() && (
                   <p style={{
                     fontSize: '12px',
-                    color: 'rgba(255,255,255,0.9)',
+                    color: 'rgba(255,255,255,1)',
                     marginTop: '12px',
                     marginBottom: '0',
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    fontWeight: '500',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                   }}>
                     💡 Im Browser/Simulator: Foto aus Galerie/Dateien auswählen
                   </p>
@@ -1299,10 +1301,10 @@ const HomePage = () => {
           )}
 
           {photos.length === 0 && (
-            <Block style={{textAlign: 'center', opacity: 0.6, marginTop: '40px'}}>
-              <Icon f7="photo" size="64px" color="gray" />
-              <p>Noch keine Fotos aufgenommen</p>
-              <p style={{fontSize: '13px', color: '#999'}}>Tippe auf "Foto aufnehmen" um zu starten</p>
+            <Block style={{textAlign: 'center', marginTop: '40px'}}>
+              <Icon f7="photo" size="64px" color="#999" />
+              <p style={{color: '#666', fontWeight: '500'}}>Noch keine Fotos aufgenommen</p>
+              <p style={{fontSize: '13px', color: '#888'}}>Tippe auf "Foto aufnehmen" um zu starten</p>
             </Block>
           )}
         </Tab>
@@ -1353,7 +1355,7 @@ const HomePage = () => {
               <Button large fill color="red" href="tel:112" external raised className="margin-bottom" style={{borderRadius: '12px', fontWeight: 'bold', fontSize: '18px'}}>
                 <Icon icon="f7:phone_fill" className="margin-right" /> {t('safety_emergency_call')}
               </Button>
-              <div style={{marginBottom: '12px', padding: '12px', background: '#fff3cd', borderRadius: '8px', fontSize: '13px', color: '#856404', border: '1px solid #ffeaa7'}}>
+              <div style={{marginBottom: '12px', padding: '12px', background: '#fff3cd', borderRadius: '8px', fontSize: '13px', color: '#664d03', border: '1px solid #ffc107', fontWeight: '500'}}>
                 💡 <b>{t('safety_tip')}</b> {t('safety_tip_text')}
               </div>
               <div className="grid grid-cols-2 grid-gap">
@@ -1497,16 +1499,29 @@ const HomePage = () => {
         opened={activitySheet.opened}
         onSheetClosed={() => setActivitySheet({...activitySheet, opened: false})}
       >
-        <div className="sheet-modal-swipe-step">
-          <div className="display-flex padding justify-content-between align-items-center bg-color-light" style={{padding: '16px'}}>
+        <div className="sheet-modal-swipe-step" style={{display: 'flex', flexDirection: 'column', maxHeight: '85vh'}}>
+          {/* Fixed Header */}
+          <div className="bg-color-light" style={{padding: '16px', position: 'relative', flexShrink: 0, borderBottom: '1px solid #e0e0e0'}}>
             <div style={{fontSize: '20px', fontWeight: 'bold'}}>
               <span style={{fontSize: '24px', marginRight: '8px'}}>{activitySheet.icon}</span>
               {activitySheet.editingEventId ? `${activitySheet.title} bearbeiten` : activitySheet.title}
             </div>
-            <Link onClick={() => setActivitySheet({...activitySheet, opened: false})}>{t('cancel')}</Link>
+            <Link 
+              onClick={() => setActivitySheet({...activitySheet, opened: false})}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                fontSize: '16px',
+                fontWeight: '500'
+              }}
+            >
+              {t('cancel')}
+            </Link>
           </div>
 
-          <PageContent>
+          {/* Scrollable Content */}
+          <div style={{overflowY: 'auto', flex: 1}}>
             <Block style={{paddingTop: '8px', paddingBottom: '24px'}}>
               
               {/* Kind-Auswahl wenn mehrere Kinder */}
@@ -1528,7 +1543,7 @@ const HomePage = () => {
 
               {/* Stimmung */}
               <div style={{marginBottom: '16px', textAlign: 'center'}}>
-                <div style={{marginBottom: '8px', fontWeight: 'bold', color: '#666'}}>{t('activity_mood')}</div>
+                <div style={{marginBottom: '8px', fontWeight: 'bold', color: '#333', fontSize: '15px'}}>{t('activity_mood')}</div>
                 <div style={{display: 'flex', justifyContent: 'center', gap: '12px'}}>
                   {['😢', '😐', '😊', '😄'].map(emoji => (
                     <div 
@@ -1671,7 +1686,7 @@ const HomePage = () => {
                 {activitySheet.editingEventId ? 'Aktualisieren' : t('save')}
               </Button>
             </Block>
-          </PageContent>
+          </div>
         </div>
       </Sheet>
 
