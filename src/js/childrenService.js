@@ -269,13 +269,33 @@ export async function syncChildrenWithSupabase(userId) {
     }
 
     // Lokale Kinder, die nicht in Supabase sind, hinzufügen
+    // ABER: Prüfe erst, ob das Kind kürzlich gelöscht wurde (Race Condition vermeiden)
+    const deletedKids = JSON.parse(localStorage.getItem('sitterSafe_deleted_kids') || '[]');
+    const recentlyDeletedIds = new Set(
+      deletedKids
+        .filter(d => Date.now() - d.deletedAt < 60000) // Innerhalb der letzten 60 Sekunden gelöscht
+        .map(d => d.id)
+    );
+    
     for (const localKind of localKinder) {
       if (!remoteIds.has(localKind.id)) {
+        // Prüfe ob es kürzlich gelöscht wurde
+        if (recentlyDeletedIds.has(localKind.id)) {
+          console.log('⏭️ Überspringe kürzlich gelöschtes Kind:', localKind.basis.name);
+          continue;
+        }
+        
         console.log('➕ Lokales Kind nicht in Supabase gefunden, füge hinzu:', localKind.basis.name);
         // Neues lokales Kind -> zu Supabase hochladen
         await saveChildToSupabase(localKind, userId);
         mergedKinder.push(localKind);
       }
+    }
+    
+    // Cleanup: Entferne alte gelöschte IDs (älter als 5 Minuten)
+    const cleanedDeletedKids = deletedKids.filter(d => Date.now() - d.deletedAt < 300000);
+    if (cleanedDeletedKids.length !== deletedKids.length) {
+      localStorage.setItem('sitterSafe_deleted_kids', JSON.stringify(cleanedDeletedKids));
     }
 
     console.log('✅ Merge abgeschlossen:', mergedKinder.length, 'Kinder (mit lokalen Fotos erhalten)');

@@ -255,6 +255,12 @@ const KindDetailPage = ({ f7route }) => {
         // Custom Event dispatchen für andere Seiten
         window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'deleted', kindId: kindId } }));
         
+        // Markiere als gelöscht mit Timestamp (verhindert Re-Upload bei Sync)
+        const deletedTimestamp = Date.now();
+        const deletedKids = JSON.parse(localStorage.getItem('sitterSafe_deleted_kids') || '[]');
+        deletedKids.push({ id: kindId, deletedAt: deletedTimestamp });
+        localStorage.setItem('sitterSafe_deleted_kids', JSON.stringify(deletedKids));
+        
         // Aus Supabase löschen
         try {
           const { data: { session } } = await supabase.auth.getSession();
@@ -270,7 +276,7 @@ const KindDetailPage = ({ f7route }) => {
           console.warn('Fehler bei Supabase-Löschung:', error);
         }
         
-        // Toast anzeigen und zur Home-Seite mit Kinder-Tab navigieren
+        // Toast anzeigen
         f7.toast.show({ 
           text: 'Profil gelöscht', 
           icon: '<i class="f7-icons">checkmark_alt</i>',
@@ -278,16 +284,13 @@ const KindDetailPage = ({ f7route }) => {
           position: 'center'
         });
         
-        // Zur Home-Seite navigieren und Kinder-Tab aktivieren
-        f7.views.main.router.navigate('/', {
-          reloadCurrent: true,
-          on: {
-            pageAfterIn: () => {
-              // Kinder-Tab aktivieren
-              f7.tab.show('#tab-kinder');
-            }
-          }
-        });
+        // Einfach zurück navigieren - das Event triggert automatisch das Update
+        f7.views.main.router.back();
+        
+        // Nach kurzer Verzögerung Kinder-Tab aktivieren
+        setTimeout(() => {
+          f7.tab.show('#tab-kinder');
+        }, 100);
       }
     );
   };
