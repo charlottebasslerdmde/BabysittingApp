@@ -380,6 +380,11 @@ const HomePage = () => {
         setEventLog(events);
         // Cache in localStorage
         localStorage.setItem('sitterSafe_eventLog', JSON.stringify(events));
+      } else if (data && data.length === 0) {
+        // Supabase hat keine Events (z.B. alle wurden gelöscht)
+        // Synchronisiere dies mit LocalStorage
+        setEventLog([]);
+        localStorage.setItem('sitterSafe_eventLog', JSON.stringify([]));
       }
     } catch (error) {
       console.error('Error syncing events:', error);
