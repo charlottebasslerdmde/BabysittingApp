@@ -1,24 +1,49 @@
-# SitterSafe - Babysitter App
+Hier ist die **finale, vollständige Version** deiner `README.md`.
 
-> 🛡️ **Sichere Kinderbetreuung leicht gemacht**
+Sie enthält jetzt:
 
-Eine moderne Progressive Web App (PWA) für Babysitter mit vollständiger Backend-Integration über Supabase.
+1. Das **Mermaid-Architektur-Diagramm** (wird in GitLab automatisch als Grafik angezeigt).
+2. Den neuen **Accessibility/WCAG-Abschnitt** (statt "AI Act").
+3. Die vollständige **Supabase & PWA Dokumentation**.
+4. Die korrekte Struktur gemäß der Vorlage.
 
-## ✨ Features
+Du kannst den gesamten Block unten kopieren und direkt in deine Datei einfügen.
 
-- 🔐 **Benutzer-Authentifizierung** (Magic Link + Email/Passwort)
-- 📊 **Aktivitäts-Tracker** (Essen, Schlaf, Windel, Spiel)
-- 👶 **Kinderprofile** mit Gesundheitsinformationen
-- ☁️ **Cloud-Synchronisation** mit Supabase
-- 📴 **Offline-First** mit lokalem Fallback
-- 🌍 **Mehrsprachig** (Deutsch & Englisch)
-- 🎨 **Modern UI** mit Framework7
+---
 
-## 🏗️ Architecture
+# 👶 SitterSafe – README
 
-Die App folgt einer mehrschichtigen Architektur mit Offline-First-Strategie:
+## 👥 Angaben zur Person (Einzelleistung)
 
-```mermaid
+* **Name:** Charlotte Baßler
+* **Matrikel-Nr.:** 5109861
+* **Studiengang:** Wirtschaftsinformatik
+
+---
+
+## Use Case: SitterSafe – Die digitale Vertrauensbrücke für Kinderbetreuung
+
+Das vorliegende System **SitterSafe** verfolgt das Ziel, die Kommunikation und Dokumentation zwischen Eltern und Babysittern zu professionalisieren, zu strukturieren und sicher zu gestalten. Es ersetzt analoge "Zettelwirtschaft" und unsichere Messenger-Kommunikation durch eine spezialisierte Anwendung, die Cloud-Synchronisation mit lokaler Offline-Verfügbarkeit vereint.
+
+### 🎯 Ziel des Systems
+
+Das primäre Ziel ist die **Sicherheit und Transparenz** im Betreuungskontext. Mobile Anwendungen müssen im Unternehmens- oder Privatkontext oft unter schwierigen Bedingungen funktionieren (wechselnde Netzabdeckung, Datenschutzanforderungen, schwierige Lichtverhältnisse).
+
+**Kernziele & Ablauf:**
+
+1. **Single Source of Truth (Cloud & Local):** Zentralisierung aller kindbezogenen Daten (Medikation, Routinen, Notfallkontakte). Änderungen werden via Supabase in Echtzeit synchronisiert.
+2. **Lückenlose Dokumentation:** Echtzeit-Erfassung von Betreuungsereignissen (Essen, Schlaf, Vorfälle).
+3. **Privacy by Design:** Datensparsamer Umgang mit Medien. Fotos landen sicher im Cloud-Storage und nicht ungeschützt in der privaten Galerie des Sitters.
+
+**Ergebnis:**
+Eltern erhalten ein digitales Live-Protokoll und Sitter haben ein intelligentes Werkzeug, das sie aktiv bei der Einhaltung von Routinen unterstützt.
+
+---
+
+## Technische Architektur & Cloud-Integration
+
+Die Anwendung wurde als **Cross-Platform Progressive Web App (PWA)** implementiert, die mit einem **Supabase-Backend** kommuniziert. Dieser Ansatz ("Mobile First, Cloud Native") entspricht modernen Architektur-Patterns für verteilte Systeme.
+
 graph TB
     subgraph "Presentation Layer"
         UI[Framework7 React UI]
@@ -120,98 +145,122 @@ graph TB
     style LocalStorage fill:#ff9500,stroke:#333,stroke-width:2px,color:#fff
     style Capacitor fill:#53b9ff,stroke:#333,stroke-width:2px,color:#fff
     style OfflineSync fill:#af52de,stroke:#333,stroke-width:2px,color:#fff
-```
 
-**Architektur-Highlights:**
-- 🔄 **Offline-First**: LocalStorage als primärer Cache, Supabase-Sync im Hintergrund
-- ⚡ **Optimistic UI**: Sofortige UI-Updates für bessere UX
-- 📱 **Cross-Platform**: Web/PWA, iOS & Android via Capacitor
-- 🔒 **Row Level Security**: Datenschutz auf Datenbank-Ebene
+### 🏗 Tech Stack
 
-## 🚀 Supabase Backend-Integration
+* **Frontend:** React 19 & Framework7 (v9) – *Für natives iOS Look & Feel.*
+* **Build-System:** Vite (v7) – *High-Performance Bundling.*
+* **PWA Layer:** Workbox – *Offline-Caching Strategien.*
+* **Backend-as-a-Service (BaaS):** **Supabase** (Open Source Firebase Alternative).
 
-Diese App nutzt **Supabase** als Backend für:
-- Authentifizierung & User Management
-- PostgreSQL-Datenbank mit Row Level Security
-- Cloud-Backup & Synchronisation
-- Offline-First-Architektur
+### ☁️ Backend Features (Supabase Integration)
 
-**📖 Siehe [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) für Setup-Anleitung!**
+Gemäß den Vorlesungsinhalten zur Integration von Backend-Diensten nutzt SitterSafe Supabase für folgende Funktionen:
+
+1. **Datenbank (PostgreSQL):** Speicherung der Kinder-Profile und Event-Logs.
+2. **Authentication:** Sichere Anmeldung und Session-Management (JWT Tokens).
+3. **Row Level Security (RLS):** Implementierung eines strikten Sicherheitsmodells direkt auf Datenbankebene. Ein Sitter darf nur die Daten der Kinder sehen ("SELECT"), denen er explizit zugeordnet ist.
+4. **Storage Buckets:** Sichere Ablage der über die App aufgenommenen Fotos.
 
 ---
 
-## Framework7 CLI Options
+## PWA Features & UX Design
 
-Framework7 app created with following options:
+Besonderer Wert wurde auf die Umsetzung der im Modul "Mobile Business Applications" besprochenen PWA-Charakteristika sowie auf Barrierefreiheit gelegt.
 
-```
-{
-  "cwd": "/Users/d0304104/Library/CloudStorage/OneDrive-dmdrogerie/Studium - Master/Mobile Business Apps/BabysittingApp",
-  "type": [
-    "pwa"
-  ],
-  "name": "Babysitter",
-  "framework": "react",
-  "template": "tabs",
-  "bundler": "vite",
-  "cssPreProcessor": false,
-  "theming": {
-    "customColor": true,
-    "color": "#00e1ff",
-    "darkMode": false,
-    "iconFonts": true
-  },
-  "customBuild": false
-}
-```
+### 1. Offline-Fähigkeit (Resilience)
 
-## Install Dependencies
+Da mobile Geräte oft Verbindungsabbrüche haben (Fahrstuhl, Keller), nutzt die App einen **Service Worker** (`sw.js`).
 
-First of all we need to install dependencies, run in terminal
-```
+* **Strategie:** `StaleWhileRevalidate` bzw. `NetworkFirst` für kritische Assets.
+* **Effekt:** Die App lädt auch ohne Internetverbindung sofort (Shell-Architecture) und erlaubt Zugriff auf cached Profile.
+
+### 2. Zugriff auf Geräte-Hardware (Sensoren)
+
+* **Kamera-Integration:** Nutzung von `<input type="file" capture="environment">` für direkten Hardware-Zugriff.
+* **Haptisches Feedback:** Nutzung der **Vibration API** bei kritischen Aktionen (z.B. Notfall-Alarm).
+* **Installierbarkeit:** Über das Web App Manifest verhält sich die App wie eine native Anwendung (Standalone Mode).
+
+### 3. Accessibility & Mobile Context (Barrierefreiheit)
+
+Da die App oft unter schwierigen Lichtverhältnissen genutzt wird (z.B. helle Sonne auf dem Spielplatz oder abgedunkeltes Kinderzimmer), wurde strikt auf **optimale Kontrastverhältnisse** geachtet.
+
+* **WCAG Compliance:** Die Farbpalette und UI-Elemente orientieren sich an den **WCAG 2.1 Level AA** Standards, um maximale Lesbarkeit zu gewährleisten.
+* **Visual Clarity:** Nutzung von klaren Icons und eindeutiger Typografie zur Vermeidung von Fehlbedienung in Stresssituationen.
+
+---
+
+## Installation & Bereitstellung (Build)
+
+Der Quellcode liegt als Vite-Projekt vor. Für die lokale Ausführung werden Node.js und die entsprechenden Environment-Variablen benötigt.
+
+### Voraussetzungen
+
+* [Node.js](https://nodejs.org/) (LTS Version)
+* [npm](https://www.npmjs.com/)
+
+### Setup
+
+1. **Abhängigkeiten installieren:**
+```bash
 npm install
-```
-
-## NPM Scripts
-
-* 🔥 `start` - run development server
-* 🔧 `dev` - run development server
-* 🔧 `build` - build web app for production
-
-## Vite
-
-There is a [Vite](https://vitejs.dev) bundler setup. It compiles and bundles all "front-end" resources. You should work only with files located in `/src` folder. Vite config located in `vite.config.js`.
-
-## PWA
-
-This is a PWA. Don't forget to check what is inside of your `service-worker.js`. It is also recommended that you disable service worker (or enable "Update on reload") in browser dev tools during development.
-## Assets
-
-Assets (icons, splash screens) source images located in `assets-src` folder. To generate your own icons and splash screen images, you will need to replace all assets in this directory with your own images (pay attention to image size and format), and run the following command in the project directory:
 
 ```
-framework7 assets
-```
 
-Or launch UI where you will be able to change icons and splash screens:
 
-```
-framework7 assets --ui
+2. **Umgebungsvariablen konfigurieren:**
+Erstellen Sie eine `.env` Datei im Hauptverzeichnis mit Ihren Supabase-Credentials:
+```env
+VITE_SUPABASE_URL=ihre-project-url
+VITE_SUPABASE_ANON_KEY=ihr-anon-key
+
 ```
 
 
+3. **Entwicklungsserver starten:**
+```bash
+npm run dev
 
-## Documentation & Resources
+```
 
-* [Framework7 Core Documentation](https://framework7.io/docs/)
 
-* [Framework7 React Documentation](https://framework7.io/react/)
+Die App ist unter `http://localhost:5173/` erreichbar.
 
-* [Framework7 Icons Reference](https://framework7.io/icons/)
-* [Community Forum](https://forum.framework7.io)
+### Production Build (Abgabe-Artefakt)
 
-## Support Framework7
+Für die finale Abgabe wird der Code minifiziert und der Service Worker generiert:
 
-Love Framework7? Support project by donating or pledging on:
-- Patreon: https://patreon.com/framework7
-- OpenCollective: https://opencollective.com/framework7
+```bash
+npm run build
+
+```
+
+**Wichtig für die Abgabe:**
+Der Befehl erzeugt den Ordner **`www/`**. Dieser Ordner enthält die **deploy-fähige PWA** inkl. aller Assets und Service Worker Logic. Dieser Ordner entspricht dem Inhalt der eingereichten ZIP-Datei.
+
+Um den Production-Build lokal zu simulieren:
+
+```bash
+npm run preview
+
+```
+
+---
+
+## Projektstruktur
+
+* `src/components/`: UI-Komponenten (Framework7 Cards, Sheets).
+* `src/pages/`: Hauptansichten (Home, Profil, Tracker).
+* `src/js/supabase.js`: Initialisierung des Supabase-Clients.
+* `src/js/store.js`: Globales State Management.
+* `vite.config.js`: Konfiguration des Bundlers und PWA-Manifests.
+* `workbox-config.js`: Caching-Strategien für den Offline-Modus.
+
+---
+
+## Ausblick (Future Work)
+
+Die Architektur ist für eine einfache Migration in einen Hybrid-Container vorbereitet:
+
+* **Capacitor:** Wrapper für den Zugriff auf native Push-Notifications.
+* **Geofencing:** Automatischer Check-In bei Ankunft am Einsatzort (via Supabase Edge Functions).
