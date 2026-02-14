@@ -6,6 +6,19 @@
 * **Matrikel-Nr.:** 5109861
 
 ---
+## 🎥 Screencast / Demo
+
+Hier ist ein kurzer Durchlauf der App-Funktionen (Live-Demo):
+
+[![SitterSafe Demo Video](https://img.youtube.com/vi/p-pZmVeZ7n8/0.jpg)](https://www.youtube.com/watch?v=p-pZmVeZ7n8)
+
+> *Hinweis: Durch Klicken auf das Bild werden Sie zu YouTube weitergeleitet.*
+
+⚠️ Wichtiger Hinweis zur Aufnahmeumgebung:
+Der Screencast wurde aus technischen Gründen im iOS-Simulator aufgezeichnet. Hardware-spezifische Funktionen wie FaceID und der native Kamerazugriff konnten daher im Video nicht demonstriert werden.
+
+Die App wurde jedoch begleitend auf einem physischen iPhone erfolgreich getestet ("Real Device Testing"). Sowohl die biometrische Authentifizierung als auch die Kamera-Integration funktionierten auf der echten Hardware fehlerfrei.
+---
 
 ## Use Case: SitterSafe – Die digitale Vertrauensbrücke für Kinderbetreuung
 
@@ -241,6 +254,22 @@ npm run preview
 * `src/js/store.js`: Globales State Management.
 * `vite.config.js`: Konfiguration des Bundlers und PWA-Manifests.
 * `workbox-config.js`: Caching-Strategien für den Offline-Modus.
+
+---
+
+## ⚠️ Bekannte Limitierungen & Simulator-Hinweise (Known Issues)
+
+Im Rahmen des Testings im iOS-Simulator (Xcode) und im Production-Build wurden folgende verhaltensspezifische Abweichungen identifiziert:
+
+1.  **State-Reaktivität bei Profilen (Simulator-spezifisch):**
+    * *Beobachtung:* Nach dem Erstellen (`Create`) oder Löschen (`Delete`) eines Kinderprofils wird die Übersichtsliste im Simulator gelegentlich nicht sofort aktualisiert (UI-Latency).
+    * *Kontext:* Dieser Fehler tritt primär im Production-Build/Simulator auf. In der lokalen Entwicklungsumgebung (`localhost`) funktioniert das State-Update verzögerungsfrei.
+    * *Workaround:* Ein kurzer Tab-Wechsel oder Reload der App erzwingt das Neuladen der Liste.
+
+2.  **Touch-Target Sensitivität:**
+    * *Beobachtung:* Der "Bearbeiten"-Button in der Aktivitäts-Liste verfügt im Simulator über eine sehr präzise "Hit-Box".
+    * *Kontext:* Die Übersetzung von Maus-Klicks im Simulator auf die Touch-Events der App ist stellenweise zu sensibel eingestellt. Auf einem physischen Gerät (Finger-Touch) ist die Trefferfläche besser optimiert.
+    * *Workaround:* Bitte im Simulator exakt auf das Icon klicken.
 
 ---
 
