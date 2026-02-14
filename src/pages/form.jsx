@@ -138,7 +138,10 @@ const FormPage = ({ f7router }) => {
 
     setLoading(false);
 
-    // 5. Zurück zur Übersicht navigieren
+    // 5. Custom Event dispatchen für Live-Sync zwischen Geräten
+    window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'added', kind: newKind } }));
+
+    // 6. Zurück zur Übersicht navigieren
     f7router.back();
   };
 
