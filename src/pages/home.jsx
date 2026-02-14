@@ -187,12 +187,14 @@ const HomePage = () => {
 
   // Custom Event Listener für Kinder-Updates (von kinder.jsx)
   useEffect(() => {
-    const handleKinderUpdate = (event) => {
+    const handleKinderUpdate = async (event) => {
       loadKinderData(); // Kinder-Daten neu laden
       
-      // Wenn ein Kind gelöscht wurde, Event-Log neu laden
-      if (event.detail?.action === 'deleted') {
-        loadEventLog();
+      // Wenn ein Kind gelöscht wurde, Events bereinigen
+      if (event.detail?.action === 'deleted' && event.detail?.kindId) {
+        await cleanupEventsForDeletedChild(event.detail.kindId);
+        // Dann neu laden um sicherzustellen, dass alles synchron ist
+        await loadEventLog();
       }
     };
 
@@ -308,6 +310,63 @@ const HomePage = () => {
       } catch (e) {
         console.error("Fehler beim Laden der Fotos", e);
       }
+    }
+  };
+
+  const cleanupEventsForDeletedChild = async (kindId) => {
+    // Events bereinigen, die das gelöschte Kind enthalten
+    const updatedEvents = eventLog.map(event => {
+      if (event.kindIds && event.kindIds.includes(kindId)) {
+        // Kind aus der Liste entfernen
+        const newKindIds = event.kindIds.filter(id => id !== kindId);
+        
+        if (newKindIds.length === 0) {
+          // Keine Kinder mehr übrig -> Event löschen
+          return null;
+        }
+        
+        // Update Event mit verbleibenden Kindern
+        // Aktualisiere auch die Aktivitäts-Beschreibung
+        const remainingNames = newKindIds.map(id => {
+          const kind = kinder.find(k => k.id === id);
+          return kind ? (kind.basis.rufname || kind.basis.name) : '';
+        }).filter(Boolean);
+        
+        const activity = event.activity.split(':');
+        let newActivity = event.activity;
+        if (activity.length > 1) {
+          // Aktualisiere Namen in der Beschreibung
+          newActivity = `${remainingNames.join(', ')}:${activity.slice(1).join(':')}`;
+        }
+        
+        return {
+          ...event,
+          kindIds: newKindIds,
+          activity: newActivity
+        };
+      }
+      return event;
+    }).filter(Boolean); // Entferne null-Einträge (gelöschte Events)
+    
+    setEventLog(updatedEvents);
+    safeLocalStorageSet('sitterSafe_eventLog', updatedEvents);
+    
+    // Aus Supabase löschen
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { error } = await supabase
+          .from('events')
+          .delete()
+          .eq('user_id', session.user.id)
+          .eq('child_id', kindId);
+        
+        if (error && error.code !== 'PGRST116' && error.code !== '42P01') {
+          console.warn('Fehler beim Löschen der Kind-Events aus Supabase:', error);
+        }
+      }
+    } catch (error) {
+      console.warn('Fehler bei der Supabase-Bereinigung:', error);
     }
   };
 
