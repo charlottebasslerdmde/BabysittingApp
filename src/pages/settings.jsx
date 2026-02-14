@@ -572,6 +572,13 @@ const SettingsPage = () => {
   const cloudBackup = async () => {
     f7.preloader.show();
     try {
+      // Session prüfen und User-ID holen
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        throw new Error('Nicht angemeldet. Bitte zuerst einloggen.');
+      }
+      
       const data = {};
       for (let key in localStorage) {
         if (key.startsWith('sitterSafe_')) {
@@ -582,7 +589,7 @@ const SettingsPage = () => {
       const deviceInfo = `${navigator.platform} | ${navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'}`;
       
       const backupData = {
-        user_id: 'demo_user', // In echter App würde man hier die echte User-ID verwenden
+        user_id: session.user.id, // Echte User-ID aus Session
         backup_data: data,
         device_info: deviceInfo,
         app_version: stats.appVersion,
@@ -611,10 +618,17 @@ const SettingsPage = () => {
   const cloudRestore = async () => {
     f7.preloader.show();
     try {
+      // Session prüfen und User-ID holen
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        throw new Error('Nicht angemeldet. Bitte zuerst einloggen.');
+      }
+      
       const { data, error } = await supabase
         .from('backups')
         .select('*')
-        .eq('user_id', 'demo_user')
+        .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
         .limit(1);
       
@@ -700,10 +714,17 @@ const SettingsPage = () => {
   const showCloudBackups = async () => {
     f7.preloader.show();
     try {
+      // Session prüfen und User-ID holen
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        throw new Error('Nicht angemeldet. Bitte zuerst einloggen.');
+      }
+      
       const { data, error } = await supabase
         .from('backups')
         .select('*')
-        .eq('user_id', 'demo_user')
+        .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
         .limit(10);
       
@@ -774,10 +795,17 @@ const SettingsPage = () => {
   const manageCloudBackups = async () => {
     f7.preloader.show();
     try {
+      // Session prüfen und User-ID holen
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        throw new Error('Nicht angemeldet. Bitte zuerst einloggen.');
+      }
+      
       const { data, error } = await supabase
         .from('backups')
         .select('*')
-        .eq('user_id', 'demo_user')
+        .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;

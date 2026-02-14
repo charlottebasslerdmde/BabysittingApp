@@ -1,9 +1,4 @@
-// NEU: Echtes Datei-Sharing
-const file = new File([text], `backup_${date}.json`, {type: 'application/json'});
-await navigator.share({
-  title: 'SitterSafe Backup',
-  files: [file]  // ✅ Teilt echte Datei
-});# SitterSafe - Babysitter App
+# SitterSafe - Babysitter App
 
 > 🛡️ **Sichere Kinderbetreuung leicht gemacht**
 
@@ -18,6 +13,120 @@ Eine moderne Progressive Web App (PWA) für Babysitter mit vollständiger Backen
 - 📴 **Offline-First** mit lokalem Fallback
 - 🌍 **Mehrsprachig** (Deutsch & Englisch)
 - 🎨 **Modern UI** mit Framework7
+
+## 🏗️ Architecture
+
+Die App folgt einer mehrschichtigen Architektur mit Offline-First-Strategie:
+
+```mermaid
+graph TB
+    subgraph "Presentation Layer"
+        UI[Framework7 React UI]
+        Pages[Pages Layer]
+        HomePage[home.jsx<br/>Tracker & Timeline]
+        KinderPage[kinder.jsx<br/>Children List]
+        KindDetail[KindDetailPage.jsx<br/>Child Profile]
+        LoginPage[Login.jsx<br/>Authentication]
+        Settings[settings.jsx<br/>Configuration]
+        
+        UI --> Pages
+        Pages --> HomePage
+        Pages --> KinderPage
+        Pages --> KindDetail
+        Pages --> LoginPage
+        Pages --> Settings
+    end
+    
+    subgraph "Business Logic Layer"
+        Components[React Components]
+        Services[Services]
+        ChildrenService[childrenService.js<br/>Child CRUD]
+        AuthGuard[authGuard.js<br/>Route Protection]
+        ImageUtils[imageUtils.js<br/>Image Compression]
+        i18n[i18n.js<br/>Internationalization]
+        
+        Pages --> Components
+        Components --> Services
+        Services --> ChildrenService
+        Services --> AuthGuard
+        Services --> ImageUtils
+        Services --> i18n
+    end
+    
+    subgraph "State Management"
+        ReactState[React useState/useEffect]
+        LocalStorage[Browser LocalStorage<br/>Offline-First Cache]
+        
+        Components --> ReactState
+        ReactState --> LocalStorage
+    end
+    
+    subgraph "Backend Services - Supabase"
+        SupabaseClient[supabase.js Client]
+        Auth[Supabase Auth<br/>User Management]
+        Database[PostgreSQL Database]
+        Storage[Supabase Storage<br/>Photo Storage]
+        
+        SupabaseClient --> Auth
+        SupabaseClient --> Database
+        SupabaseClient --> Storage
+        
+        subgraph "Database Tables"
+            Children[children table<br/>Child profiles]
+            Events[events table<br/>Activity log]
+            Profiles[user_profiles table<br/>User data]
+        end
+        
+        Database --> Children
+        Database --> Events
+        Database --> Profiles
+    end
+    
+    subgraph "Mobile Platform"
+        Capacitor[Capacitor]
+        Camera[Camera Plugin]
+        Share[Share Plugin]
+        iOS[iOS Native]
+        Android[Android Native]
+        
+        Capacitor --> Camera
+        Capacitor --> Share
+        Capacitor --> iOS
+        Capacitor --> Android
+    end
+    
+    subgraph "Data Flow"
+        OfflineSync[Offline-First Strategy]
+        OptimisticUI[Optimistic UI Updates]
+    end
+    
+    Services --> SupabaseClient
+    LocalStorage -.Fallback.-> Components
+    SupabaseClient -.Sync.-> LocalStorage
+    
+    Components --> Capacitor
+    ImageUtils --> Camera
+    HomePage --> Share
+    
+    ReactState --> OfflineSync
+    OfflineSync --> LocalStorage
+    OfflineSync --> SupabaseClient
+    
+    ReactState --> OptimisticUI
+    OptimisticUI -.Fast Feedback.-> UI
+    
+    style UI fill:#667eea,stroke:#333,stroke-width:2px,color:#fff
+    style SupabaseClient fill:#3ecf8e,stroke:#333,stroke-width:2px,color:#fff
+    style LocalStorage fill:#ff9500,stroke:#333,stroke-width:2px,color:#fff
+    style Capacitor fill:#53b9ff,stroke:#333,stroke-width:2px,color:#fff
+    style OfflineSync fill:#af52de,stroke:#333,stroke-width:2px,color:#fff
+```
+
+**Architektur-Highlights:**
+- 🔄 **Offline-First**: LocalStorage als primärer Cache, Supabase-Sync im Hintergrund
+- ⚡ **Optimistic UI**: Sofortige UI-Updates für bessere UX
+- 📱 **Cross-Platform**: Web/PWA, iOS & Android via Capacitor
+- 🔒 **Row Level Security**: Datenschutz auf Datenbank-Ebene
 
 ## 🚀 Supabase Backend-Integration
 

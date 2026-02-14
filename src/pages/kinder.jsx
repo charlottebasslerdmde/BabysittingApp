@@ -70,7 +70,17 @@ const KinderPage = () => {
 
       if (data && data.length > 0) {
         // Konvertiere Supabase-Format zu lokalem Format
-        const children = data.map(child => child.data);
+        const children = data.map(child => {
+          const kindData = child.data;
+          
+          // WICHTIG: Foto aus avatar_url übernehmen, falls vorhanden
+          // Das Foto wird separat in avatar_url gespeichert für schnellen Zugriff
+          if (child.avatar_url && kindData.basis) {
+            kindData.basis.foto = child.avatar_url;
+          }
+          
+          return kindData;
+        });
         setKinder(children);
         // Cache in localStorage
         localStorage.setItem('sitterSafe_kinder', JSON.stringify(children));
@@ -252,15 +262,7 @@ const KinderPage = () => {
       return; // Abbruch wenn Speichern fehlschlägt
     }
     
-    // State Update erst nach erfolgreichem Speichern
-    setKinder(updatedKinder);
-    setSheetOpened(false);
-    f7.toast.show({ text: t('kinder_created_success'), icon: '<i class="f7-icons">checkmark_alt</i>', closeTimeout: 2000 });
-    
-    // Custom Event dispatchen, um andere Seiten zu informieren
-    window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'added', kind: newKind } }));
-    
-    // Zu Supabase synchronisieren
+    // Zu Supabase synchronisieren ZUERST (mit await, um sicherzustellen dass Foto auch hochgeladen ist)
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.id) {
@@ -273,10 +275,19 @@ const KinderPage = () => {
       console.warn('Fehler bei Supabase-Synchronisation:', error);
     }
     
-    // Navigation erst nach Schließen des Sheets
-    setTimeout(() => {
-      f7.router.navigate(`/kind/${newKind.id}/`);
-    }, 300);
+    // State Update und UI erst NACH Supabase (damit Foto sicher hochgeladen ist)
+    setKinder(updatedKinder);
+    setSheetOpened(false);
+    f7.toast.show({ text: t('kinder_created_success'), icon: '<i class="f7-icons">checkmark_alt</i>', closeTimeout: 2000 });
+    
+    // Custom Event dispatchen für andere Seiten (z.B. Home-Tab)
+    window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'added', kind: newKind } }));
+    
+    // Daten neu laden, damit avatar_url aus Supabase korrekt synchronisiert wird
+    // Kurze Verzögerung, damit Supabase-Replikation Zeit hat
+    setTimeout(async () => {
+      await loadKinder();
+    }, 500);
   };
 
   const deleteKind = async (id) => {

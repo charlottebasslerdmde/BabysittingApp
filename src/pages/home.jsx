@@ -287,7 +287,17 @@ const HomePage = () => {
 
       if (data && data.length > 0) {
         // Konvertiere Supabase-Format zu lokalem Format
-        const children = data.map(child => child.data);
+        const children = data.map(child => {
+          const kindData = child.data;
+          
+          // WICHTIG: Foto aus avatar_url übernehmen, falls vorhanden
+          // Das Foto wird separat in avatar_url gespeichert für schnellen Zugriff
+          if (child.avatar_url && kindData.basis) {
+            kindData.basis.foto = child.avatar_url;
+          }
+          
+          return kindData;
+        });
         setKinder(children);
         // Cache in localStorage
         localStorage.setItem('sitterSafe_kinder', JSON.stringify(children));

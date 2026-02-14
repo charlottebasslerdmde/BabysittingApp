@@ -141,8 +141,15 @@ const FormPage = ({ f7router }) => {
     // 5. Custom Event dispatchen für Live-Sync zwischen Geräten
     window.dispatchEvent(new CustomEvent('kinderUpdated', { detail: { action: 'added', kind: newKind } }));
 
-    // 6. Zurück zur Übersicht navigieren
-    f7router.back();
+    // 6. Zur Home-Page navigieren und Kinder-Tab öffnen
+    f7router.navigate('/home/', {
+      clearPreviousHistory: false
+    });
+    
+    // Tab auf Kinder setzen mit Framework7 API (nach Navigation)
+    setTimeout(() => {
+      f7.tab.show('#tab-kinder');
+    }, 150);
   };
 
   return (
