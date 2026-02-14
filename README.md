@@ -1,23 +1,9 @@
-Hier ist die **finale, vollständige Version** deiner `README.md`.
-
-Sie enthält jetzt:
-
-1. Das **Mermaid-Architektur-Diagramm** (wird in GitLab automatisch als Grafik angezeigt).
-2. Den neuen **Accessibility/WCAG-Abschnitt** (statt "AI Act").
-3. Die vollständige **Supabase & PWA Dokumentation**.
-4. Die korrekte Struktur gemäß der Vorlage.
-
-Du kannst den gesamten Block unten kopieren und direkt in deine Datei einfügen.
-
----
-
 # 👶 SitterSafe – README
 
-## 👥 Angaben zur Person (Einzelleistung)
+## 👥 Angaben zur Person 
 
 * **Name:** Charlotte Baßler
 * **Matrikel-Nr.:** 5109861
-* **Studiengang:** Wirtschaftsinformatik
 
 ---
 
